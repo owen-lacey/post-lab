@@ -117,10 +117,10 @@ Each milestone ends with lint, typecheck, tests and build passing, and with its 
 - Vite + React + Tailwind + shadcn UI shell. shadcn `init` (Vite, Radix) installs `cn`, `radix-ui` and the Geist font; `sonner` pulls in `next-themes`.
 - Hono server serving the built UI and `/api`. `src/cli.ts` with `--port`, launch token and browser open.
 - Security middleware: bind 127.0.0.1, Host check on every request, Origin check on state-changing requests, token-for-cookie swap at `/api/session`, cookie name includes the port.
-- `pnpm dev`: server via tsx against `examples/demo`, plus the Vite dev server proxying `/api`.
+- `pnpm dev`: server via tsx against `examples/demo`, plus the Vite dev server proxying `/api`. It prints the sign-in link instead of opening a tab, because tsx watch restarts the server (and its in-memory session) on every change.
 
 Accept:
-- `pnpm dev` opens the UI already signed in.
+- The sign-in link printed by `pnpm dev` opens the UI signed in.
 - A request without the cookie gets 401; a wrong Host or a cross-origin POST gets 403 (Vitest).
 
 ### M2. Item format, read-only canvas and agent guide

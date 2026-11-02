@@ -4,7 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Being specified in `docs/requirements.md` (requirements R1–R33, decisions D1 onwards). All solution choices are decided (D6–D14). `docs/plan.md` is the implementation plan (milestones M1–M7). No code yet — there are no build, lint, or test commands. Add them here once scaffolded.
+Being specified in `docs/requirements.md` (requirements R1–R33, decisions D1 onwards). All solution choices are decided (D6–D14). `docs/plan.md` is the implementation plan (milestones M1–M7). M1 (scaffold and secure server) is done.
+
+## Commands
+
+Node 24.15+ is required; if the shell resolves an older Node, prefix PATH with `~/.nvm/versions/node/v24.15.0/bin`.
+
+- `pnpm dev`: API server (tsx watch, against `examples/demo`) on 4871 plus Vite on 5173. Open the printed sign-in link; each server restart prints a new one.
+- `pnpm build`: tsdown builds `dist/cli.js`, then Vite builds `dist/ui`.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm format` / `pnpm format:check` (Prettier skips markdown).
+- Run the built tool: `node dist/cli.js [--port <n>] [--no-open]` from a host repo root.
 
 ## Stack
 
