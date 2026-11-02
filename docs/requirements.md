@@ -51,7 +51,7 @@ Status: requirements questions resolved as D1–D5; solution decisions D6 onward
 - R26. Added to an existing repo and started with one command. Node is the only prerequisite.
 - R27. The tool's own code is kept separate from the board data it writes into the host repo.
 - R28. Permissively licensed dependencies only (MIT, ISC, BSD, Apache-2.0). tldraw is excluded: its licence is source-available and needs a key or watermark in production.
-- R29. Running a cell executes code with the user's privileges. Other local web pages must not be able to trigger it.
+- R29. Running a cell executes code with the user's privileges. Other local web pages must not be able to trigger it. post-lab is only used locally, by one user (D9).
 
 ## Engineering constraints (user's global rules)
 
@@ -115,9 +115,10 @@ Status: requirements questions resolved as D1–D5; solution decisions D6 onward
   - A cell's frontmatter has `command`, a shell string (e.g. `uv run analysis/churn.py`), and an optional `cwd` relative to the host repo root.
   - Cells run only when the user clicks Run in the UI, never on file changes.
   - A run empties `outputs/<cell-id>/`, sets `$POST_LAB_OUT` to it, and runs the command via execa. stdout is saved there as `stdout.txt`, so it is committed with the other outputs (R17). stderr and the exit code are shown when a run fails.
-  - The server binds to 127.0.0.1 and rejects requests whose Host or Origin header is not its own. `npx post-lab` opens the browser with a one-time token for that launch, which the server swaps for an HttpOnly, SameSite=Strict cookie.
-  - Rationale: a shell string lets cells use pipes, globs and `&&`, and agents write it naturally. Running only on a click means an agent's edit to a cell file never executes code by itself. Host/Origin checks block cross-site requests and DNS rebinding from other web pages (R29). The token also stops other local processes from calling the API.
-  - Facts considered: the token exchange must live under `/api` so the Vite dev proxy forwards it. Cookies are not port-scoped, so the cookie name must include the port (from `docs/plan.md`). Rejected: argv-list commands (no shell features), auto re-run on change (would execute agent-written code without a click), no token (any local process could call the API).
+  - The server binds to 127.0.0.1 and rejects any request whose Host header is not its own, and any state-changing request whose Origin is not its own. GET routes have no side effects. There is no sign-in, token or session cookie.
+  - Rationale: a shell string lets cells use pipes, globs and `&&`, and agents write it naturally. Running only on a click means an agent's edit to a cell file never executes code by itself. Host/Origin checks block cross-site requests and DNS rebinding from other web pages in the user's own browser (R29). Browsers let any page send GETs but not read the replies, so GETs must not change anything.
+  - Revised 2026-11-02: M1 first shipped a one-time launch token swapped for a session cookie. post-lab is only ever used locally by one user, so the token only guarded against other users on a shared machine, or processes that can reach localhost but can't already run code as the user. That was not worth a sign-in link and a new one on every dev restart, so it was removed.
+  - Facts considered: Vite's string proxy shorthand sets `changeOrigin`, which rewrites Host; the dev proxy must use the object form with `changeOrigin: false`. Rejected: argv-list commands (no shell features), auto re-run on change (would execute agent-written code without a click).
 
 - D10. Distribution and build. **Decision: a published npm package with a `post-lab` bin, run with `npx post-lab` from the host repo root. Host repos with a package.json may add it as a devDependency to pin the version. The React + TypeScript frontend is built with Vite at publish time and served by the Hono server; in development the Vite dev server proxies `/api`.**
   - Rationale: works in host repos without a package.json (e.g. Python-only analysis repos) and still allows pinning. Node stays the only prerequisite (R26). Rejected: requiring a devDependency (every host repo would need a package.json).

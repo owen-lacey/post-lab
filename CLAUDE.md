@@ -10,7 +10,7 @@ Being specified in `docs/requirements.md` (requirements R1–R33, decisions D1 o
 
 Node 24.15+ is required; if the shell resolves an older Node, prefix PATH with `~/.nvm/versions/node/v24.15.0/bin`.
 
-- `pnpm dev`: API server (tsx watch, against `examples/demo`) on 4871 plus Vite on 5173. Open the printed sign-in link; each server restart prints a new one.
+- `pnpm dev`: API server (tsx watch, against `examples/demo`) on 4871 plus Vite on 5173, which opens the browser.
 - `pnpm build`: tsdown builds `dist/cli.js`, then Vite builds `dist/ui`.
 - `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm format` / `pnpm format:check` (Prettier skips markdown).
 - Run the built tool: `node dist/cli.js [--port <n>] [--no-open]` from a host repo root.
@@ -22,7 +22,7 @@ Node 24.15+ is required; if the shell resolves an older Node, prefix PATH with `
 - **Item files**: markdown with YAML frontmatter, split by post-lab and parsed with `yaml` (not gray-matter) (D7).
 - **Server and sync**: local Node server (Hono); chokidar watches boards; changes pushed to the UI over SSE; UI saves via HTTP PUT; last write wins, disk is the truth (D8).
 - **Cells**: frontmatter `command` (shell string) + optional `cwd`; run only on a click in the UI; output dir emptied and exposed as `$POST_LAB_OUT`; run via execa; stdout saved as `stdout.txt` (D9).
-- **Security**: bind 127.0.0.1; check Host/Origin; one-time launch token swapped for an HttpOnly SameSite=Strict cookie (D9).
+- **Security**: local, single-user only. Bind 127.0.0.1; Host check on every request; Origin check on state-changing requests; GET routes have no side effects; no sign-in (D9).
 - **Distribution**: npm package with a `post-lab` bin, run via `npx post-lab` from the host repo root (optionally pinned as a devDependency). Vite + React + TypeScript frontend built at publish time and served by Hono (D10).
 - **Agent guide**: post-lab rewrites `post-lab/README.md` on every launch (D11).
 - **Output renderers**: by extension — images native; `.csv`/`.json` tables via TanStack Table; `.vl.json` via vega-embed; `.html` in an `allow-scripts`-only sandboxed iframe; `.md` via react-markdown; `stdout.txt` as text; anything else as a file link (D12).

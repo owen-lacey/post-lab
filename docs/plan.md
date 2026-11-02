@@ -70,7 +70,7 @@ vitest.config.ts      # projects: node (server, shared), jsdom (ui)
 eslint.config.js      # complexity: 10; components/ui/** excluded from react-refresh and no-inline-style
 components.json       # shadcn
 src/
-  cli.ts              # args, start server, open browser with launch token
+  cli.ts              # args, start server, open browser
   shared/             # zod schemas, item file parse/serialize, types (used by server and ui)
   server/             # Hono app, security, board store, watcher, SSE, cells, guide
   ui/                 # React app: board list, canvas, nodes, renderers, toolbar
@@ -81,11 +81,11 @@ examples/demo/        # fixture host repo for development and tests
 
 ## HTTP API
 
-All routes are under `/api` and require the session cookie (D9).
+All routes are under `/api`. Every request must carry post-lab's own Host, and every state-changing request its own Origin (D9). GET routes have no side effects.
 
 | Route | Purpose |
 |---|---|
-| `GET /api/session?token=` | Swap the launch token for the cookie, then redirect to `/` |
+| `GET /api/info` | Host repo name |
 | `GET /api/events` | SSE stream: `item`, `item-removed`, `strokes`, `outputs`, `problems`, `boards` events |
 | `GET /api/boards`, `POST /api/boards` | List boards; create one by slug |
 | `GET /api/boards/:slug` | Items, strokes, problems and output listings for one board |
@@ -115,13 +115,13 @@ Each milestone ends with lint, typecheck, tests and build passing, and with its 
 
 - pnpm, TypeScript 6, ESLint (`complexity` 10) + typescript-eslint, Prettier, Vitest.
 - Vite + React + Tailwind + shadcn UI shell. shadcn `init` (Vite, Radix) installs `cn`, `radix-ui` and the Geist font; `sonner` pulls in `next-themes`.
-- Hono server serving the built UI and `/api`. `src/cli.ts` with `--port`, launch token and browser open.
-- Security middleware: bind 127.0.0.1, Host check on every request, Origin check on state-changing requests, token-for-cookie swap at `/api/session`, cookie name includes the port.
-- `pnpm dev`: server via tsx against `examples/demo`, plus the Vite dev server proxying `/api`. It prints the sign-in link instead of opening a tab, because tsx watch restarts the server (and its in-memory session) on every change.
+- Hono server serving the built UI and `/api`. `src/cli.ts` with `--port`, `--no-open` and browser open.
+- Security middleware: bind 127.0.0.1, Host check on every request, Origin check on state-changing requests.
+- `pnpm dev`: server via tsx watch against `examples/demo`, plus the Vite dev server (which opens the browser) proxying `/api`.
 
 Accept:
-- The sign-in link printed by `pnpm dev` opens the UI signed in.
-- A request without the cookie gets 401; a wrong Host or a cross-origin POST gets 403 (Vitest).
+- `pnpm dev` and the built CLI open the UI.
+- A wrong Host, or a POST with a foreign, `null` or missing Origin, gets 403 (Vitest).
 
 ### M2. Item format, read-only canvas and agent guide
 

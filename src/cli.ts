@@ -33,11 +33,9 @@ async function main(): Promise<void> {
     publicPort: port,
     uiDir: fileURLToPath(new URL('./ui', import.meta.url)),
   });
-  console.log(`post-lab is running at http://127.0.0.1:${String(port)}`);
+  console.log(`post-lab is running at ${server.url}`);
   if (values.open) {
-    await open(server.signInUrl);
-  } else {
-    console.log(`Sign in: ${server.signInUrl}`);
+    await open(server.url);
   }
 }
 

@@ -7,16 +7,17 @@ export interface ServerOptions extends AppOptions {
 }
 
 export interface RunningServer {
-  signInUrl: string;
+  /** Where the browser opens the UI. */
+  url: string;
   close: () => Promise<void>;
 }
 
 export function startServer(options: ServerOptions): Promise<RunningServer> {
-  const { app, signInUrl } = createApp(options);
+  const app = createApp(options);
   return new Promise((resolve, reject) => {
     const server = serve({ fetch: app.fetch, port: options.port, hostname: '127.0.0.1' }, () => {
       resolve({
-        signInUrl,
+        url: `http://127.0.0.1:${String(options.publicPort)}/`,
         close: () =>
           new Promise((done, fail) => {
             server.close((error) => {

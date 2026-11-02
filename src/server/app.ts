@@ -1,7 +1,7 @@
 import { basename } from 'node:path';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
-import { createSecurity } from './security';
+import { originGuard } from './security';
 
 export interface AppOptions {
   /** Root of the host repo post-lab was started in. */
@@ -12,19 +12,15 @@ export interface AppOptions {
   uiDir?: string;
 }
 
-export function createApp({ hostRoot, publicPort, uiDir }: AppOptions) {
-  const security = createSecurity(publicPort);
+export function createApp({ hostRoot, publicPort, uiDir }: AppOptions): Hono {
   const app = new Hono();
 
-  app.use(security.originGuard);
-  // Registered before the session guard, so signing in needs no session.
-  app.get('/api/session', security.signIn);
-  app.use('/api/*', security.sessionGuard);
+  app.use(originGuard(publicPort));
   app.get('/api/info', (c) => c.json({ repo: basename(hostRoot) }));
 
   if (uiDir !== undefined) {
     app.use('/*', serveStatic({ root: uiDir }));
   }
 
-  return { app, signInUrl: security.signInUrl };
+  return app;
 }

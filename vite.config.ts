@@ -18,6 +18,7 @@ export default defineConfig({
     host: '127.0.0.1',
     port: DEV_UI_PORT,
     strictPort: true,
+    open: true,
     proxy: {
       // Object form: the string shorthand sets changeOrigin, which rewrites Host and fails the
       // server's Host check. The server expects the browser's own Host and Origin.
