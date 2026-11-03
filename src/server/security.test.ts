@@ -61,6 +61,21 @@ describe('server security', () => {
     await expect(stat(join(hostRoot, '.post-lab/items/aaaa0001.md'))).rejects.toThrow();
   });
 
+  it('rejects image uploads without post-lab’s own origin', async () => {
+    for (const headers of [{}, { origin: 'http://evil.example' }, { origin: 'null' }] as Record<
+      string,
+      string
+    >[]) {
+      const reply = await send(port, '/api/assets?id=1mage001', {
+        method: 'POST',
+        headers: { ...headers, 'content-type': 'image/png' },
+        body: Buffer.from([1, 2, 3]),
+      });
+      expect([headers, reply.status]).toEqual([headers, 403]);
+    }
+    await expect(stat(join(hostRoot, '.post-lab/assets'))).rejects.toThrow();
+  });
+
   it('lets state-changing requests from its own origin through', async () => {
     const reply = await send(port, '/api/info', {
       method: 'POST',

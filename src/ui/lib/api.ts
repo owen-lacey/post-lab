@@ -20,6 +20,16 @@ export async function postJson<T>(path: string): Promise<T> {
   return (await (await request(path, { method: 'POST' })).json()) as T;
 }
 
+/** Posts a file as the raw request body, with its type as the `Content-Type`. */
+export async function postFile<T>(path: string, file: Blob): Promise<T> {
+  const response = await request(path, {
+    method: 'POST',
+    headers: { 'content-type': file.type },
+    body: file,
+  });
+  return (await response.json()) as T;
+}
+
 export async function putJson(path: string, body: unknown): Promise<void> {
   await request(path, {
     method: 'PUT',

@@ -1,4 +1,4 @@
-import type { PositionedItem } from './to-flow';
+import type { ItemNode, PositionedItem } from './to-flow';
 
 export interface Box {
   x: number;
@@ -44,4 +44,17 @@ export function frameOf(item: PositionedItem): string | undefined {
 /** Whether a drop moved the item or changed its frame. */
 export function placementChanged(before: PositionedItem, after: PositionedItem): boolean {
   return before.x !== after.x || before.y !== after.y || frameOf(before) !== frameOf(after);
+}
+
+/** The frames' boxes in draw order; frames never nest, so their positions are absolute. */
+export function frameBoxes(nodes: ItemNode[]): FrameBox[] {
+  return nodes
+    .filter((node) => node.type === 'frame')
+    .map((node) => ({
+      id: node.id,
+      x: node.position.x,
+      y: node.position.y,
+      w: node.data.item.w,
+      h: node.data.item.h,
+    }));
 }

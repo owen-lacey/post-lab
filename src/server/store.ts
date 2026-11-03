@@ -24,10 +24,18 @@ export type BoardListener = (event: BoardEvent) => void;
 /** The board as last read from disk or saved by the UI, kept current by a file watcher (D8). */
 export interface BoardStore {
   board: () => Board;
-  /** Calls the listener for every change found on disk; returns a function that unsubscribes. */
+  /**
+   * Calls the listener for every change found on disk or made by `amendItem`; returns a function
+   * that unsubscribes.
+   */
   subscribe: (listener: BoardListener) => () => void;
   /** Writes an item file. The UI already shows the item, so no event echoes it back. */
   putItem: (id: string, frontmatter: ItemFrontmatter, body: string) => Promise<void>;
+  /**
+   * A change post-lab itself makes to an item: `amend` gets the item as it is now and returns it
+   * changed, or undefined to leave it alone. The file is written and subscribers are told.
+   */
+  amendItem: (id: string, amend: (item: Item) => Item | undefined) => Promise<void>;
   /** Deletes an item file; false when there was no such file. */
   deleteItem: (id: string) => Promise<boolean>;
   close: () => Promise<void>;
@@ -111,7 +119,7 @@ export async function openBoardStore(hostRoot: string): Promise<BoardStore> {
     const next = await loadBoard(hostRoot);
     const events = diffBoards(snapshot, next);
     snapshot = next;
-    for (const event of events) for (const listener of listeners) listener(event);
+    for (const event of events) publish(event);
   }
 
   function scheduleFlush(): void {
@@ -134,6 +142,19 @@ export async function openBoardStore(hostRoot: string): Promise<BoardStore> {
 
   const itemFile = (id: string) => join(boardDir, 'items', `${id}.md`);
 
+  /** Puts the item into the store, in the form a re-read produces, then writes its file. */
+  async function writeItem(id: string, frontmatter: ItemFrontmatter, body: string): Promise<Item> {
+    const text = serializeItemFile(frontmatter, body);
+    const item = itemFromText(id, text);
+    snapshot = withItem(snapshot, item);
+    await writeFileAtomic(itemFile(id), text);
+    return item;
+  }
+
+  function publish(event: BoardEvent): void {
+    for (const listener of listeners) listener(event);
+  }
+
   return {
     board: () => snapshot,
     subscribe: (listener) => {
@@ -142,9 +163,15 @@ export async function openBoardStore(hostRoot: string): Promise<BoardStore> {
     },
     putItem: (id, frontmatter, body) =>
       exclusive(async () => {
-        const text = serializeItemFile(frontmatter, body);
-        snapshot = withItem(snapshot, itemFromText(id, text));
-        await writeFileAtomic(itemFile(id), text);
+        await writeItem(id, frontmatter, body);
+      }),
+    amendItem: (id, amend) =>
+      exclusive(async () => {
+        const current = snapshot.items.find((item) => item.id === id);
+        const amended = current === undefined ? undefined : amend(current);
+        if (amended === undefined) return;
+        // The serializer keeps schema keys only, so `id` and `body` stay out of the frontmatter.
+        publish({ type: 'item', item: await writeItem(id, amended, amended.body) });
       }),
     deleteItem: (id) =>
       exclusive(async () => {

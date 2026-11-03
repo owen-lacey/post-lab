@@ -1,6 +1,7 @@
 import { serve } from '@hono/node-server';
 import type { Server } from 'node:http';
 import { createApp, type AppOptions } from './app';
+import { createLinkPreviews } from './link-previews';
 import { openBoardStore } from './store';
 
 export interface ServerOptions extends AppOptions {
@@ -16,7 +17,8 @@ export interface RunningServer {
 
 export async function startServer(options: ServerOptions): Promise<RunningServer> {
   const store = await openBoardStore(options.hostRoot);
-  const app = createApp(options, store);
+  const previews = createLinkPreviews(store);
+  const app = createApp(options, store, previews);
   try {
     const server = await new Promise<Server>((resolve, reject) => {
       const listening = serve(
@@ -30,6 +32,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     return {
       url: `http://127.0.0.1:${String(options.publicPort)}/`,
       close: async () => {
+        await previews.close();
         await store.close();
         await new Promise<void>((done, fail) => {
           server.close((error) => {
@@ -42,6 +45,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       },
     };
   } catch (error) {
+    await previews.close();
     await store.close();
     throw error;
   }

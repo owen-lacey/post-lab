@@ -126,6 +126,65 @@ describe('board API', () => {
     });
   });
 
+  describe('uploading images', () => {
+    const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff]);
+    const upload = (path: string, body: Buffer, type = 'image/png') =>
+      send(port, path, {
+        method: 'POST',
+        headers: { origin: `http://127.0.0.1:${String(port)}`, 'content-type': type },
+        body,
+      });
+
+    it('saves the image under assets/ and serves it back', async () => {
+      const reply = await upload('/api/assets?id=1mage001', PNG);
+      expect(reply.status).toBe(200);
+      expect(JSON.parse(reply.body)).toEqual({ src: 'assets/1mage001.png' });
+      expect(await readFile(join(hostRoot, '.post-lab/assets/1mage001.png'))).toEqual(PNG);
+
+      const jpeg = await upload('/api/assets?id=1mage002', PNG, 'image/jpeg');
+      expect(JSON.parse(jpeg.body)).toEqual({ src: 'assets/1mage002.jpg' });
+    });
+
+    it('creates assets/ when the board has none', async () => {
+      const bare = await makeHost({ '.post-lab/items/.keep': '' });
+      const barePort = await freePort();
+      const bareServer = await startServer({
+        hostRoot: bare,
+        port: barePort,
+        publicPort: barePort,
+      });
+      try {
+        const reply = await send(barePort, '/api/assets?id=1mage001', {
+          method: 'POST',
+          headers: { origin: `http://127.0.0.1:${String(barePort)}`, 'content-type': 'image/gif' },
+          body: PNG,
+        });
+        expect(reply.status).toBe(200);
+        expect(await readFile(join(bare, '.post-lab/assets/1mage001.gif'))).toEqual(PNG);
+      } finally {
+        await bareServer.close();
+      }
+    });
+
+    it('rejects bad IDs, non-images and images that are too large', async () => {
+      expect((await upload('/api/assets?id=NOT-AN-ID', PNG)).status).toBe(400);
+      expect((await upload('/api/assets', PNG)).status).toBe(400);
+      expect((await upload('/api/assets?id=1mage001', PNG, 'text/html')).status).toBe(415);
+      // Browsers declare a file's length up front; a declared length over the limit is refused
+      // before any of the body is read.
+      const huge = await send(port, '/api/assets?id=1mage001', {
+        method: 'POST',
+        headers: {
+          origin: `http://127.0.0.1:${String(port)}`,
+          'content-type': 'image/png',
+          'content-length': String(25 * 1024 * 1024 + 1),
+        },
+      });
+      expect(huge.status).toBe(413);
+      await expect(readFile(join(hostRoot, '.post-lab/assets/1mage001.png'))).rejects.toThrow();
+    });
+  });
+
   it('streams changes made on disk', async () => {
     const events = await openEvents(port);
     try {

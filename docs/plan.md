@@ -1,6 +1,6 @@
 # post-lab v1 implementation plan
 
-Status: M1–M4 done; revised 2026-11-02 for D15 (one board per host repo, in `.post-lab/`). Implements `docs/requirements.md` (R1–R33, decisions D1–D15); read that first. This plan does not reopen those decisions. Where it fixes a detail they leave open (field names, API routes, milestone order), it says so under "Plan-level details".
+Status: M1–M5 done; revised 2026-11-02 for D15 (one board per host repo, in `.post-lab/`). Implements `docs/requirements.md` (R1–R33, decisions D1–D15); read that first. This plan does not reopen those decisions. Where it fixes a detail they leave open (field names, API routes, milestone order), it says so under "Plan-level details".
 
 Versions below were checked against the npm registry on 2026-10-29.
 
@@ -19,11 +19,11 @@ Versions below were checked against the npm registry on 2026-10-29.
 | Port | Default 4870, overridable with `--port`. If the port is busy, post-lab exits with an error. |
 | Host root | The directory `npx post-lab` is run from. If `.post-lab/` is missing there, post-lab asks `No board found in this directory, start a new one? (Y/n)` (empty answer means yes); yes creates `.post-lab/items/`, no exits without creating anything (D15). |
 | Cross-item checks | Also reported as Problems, and the item is not rendered: `frame` naming a missing or non-frame item, connector `from`/`to` naming a missing item, a filename that is not `<id>.md`, a non-`.md` file in `items/`, an image `src` outside `assets/`. `strokes.json` is optional; an invalid one is a Problem. |
-| Link previews | When a link item has no `preview`, the server fetches Open Graph data (open-graph-scraper) once and writes it into the item's frontmatter, so it is committed and never refetched. Known providers (YouTube, Vimeo, etc.) play inline with react-player. |
+| Link previews | When a link item has no `preview` (on start, after a save, or when its file changes), the server fetches Open Graph data (open-graph-scraper) once and writes it into the item as it is by then, telling the UI; a page with none gets `preview: {}`. A failed fetch writes nothing and is retried on the next launch. Known providers (YouTube, Vimeo, video files, etc.) play inline with react-player. |
 | Served files | Besides the `allow-scripts`-only iframe sandbox for `.html` outputs (D12), the server sends `Content-Security-Policy: sandbox allow-scripts` with every file from `/api/files/*`, so an `.html` or `.svg` opened directly runs in an opaque origin and cannot pass the Origin check. |
 | Cell runs | One run per cell at a time; a second run request while one is in progress returns 409. Child processes are killed when post-lab exits. stdin is closed; stdout is saved verbatim (trailing newline kept). The run response is `{ ok, exitCode?, stderr }`; `exitCode` is absent when the command could not start (e.g. a missing `cwd`), and `stderr` then says why. |
 | Output listing | `GET /api/board` includes `outputs`: per valid cell, the top-level files of `outputs/<cell-id>/` sorted by code point, dotfiles and subfolders left out (subfolders are still served, so an `.html` can load its own assets). Each file has a `version` (mtime), added to its URL so a re-run is never served from cache. New outputs reach the UI as `outputs` events (M4). |
-| Board store | The server keeps the board in memory. chokidar watches `.post-lab/` (not `README.md` or `assets/`); after any event, debounced by 50 ms, the whole board is re-read from disk and diffed against the store, and each difference goes out as an SSE event. Re-reads, saves and deletes run one at a time. A save puts the item into the store (in the form a re-read produces) before writing, so the watcher finds nothing to echo back. |
+| Board store | The server keeps the board in memory. chokidar watches `.post-lab/` (not `README.md` or `assets/`); after any event, debounced by 50 ms, the whole board is re-read from disk and diffed against the store, and each difference goes out as an SSE event. Re-reads, saves and deletes run one at a time. A save puts the item into the store (in the form a re-read produces) before writing, so the watcher finds nothing to echo back. macOS FSEvents drops changes made just after a watch starts, so on start-up the store rewrites `.post-lab/.watch-check` until the watcher reports it, then deletes it, before reading the board. |
 | Saves | `PUT /api/items/:id` takes the item's frontmatter fields plus `body` as JSON (ID in the URL; 400 with the zod message if invalid) and writes the file; `DELETE` removes it (404 if missing). The UI applies each edit at once, sends requests one at a time in order, and reloads the board if one fails. |
 | UI sync | The UI opens `/api/events` and fetches `/api/board` on every (re)connect; events that arrive during the fetch are replayed after it. |
 | Renderer details | `.jpeg` renders as an image alongside D12's `.jpg`. Markdown uses GitHub flavour (remark-gfm) and Tailwind Typography; relative links and `data.url`s in `.vl.json` specs resolve against the cell's output folder. Vega, markdown and table renderers are lazy-loaded chunks. |
@@ -96,7 +96,7 @@ All routes are under `/api`. Every request must carry post-lab's own Host, and e
 | `GET /api/board` | Items, strokes, problems and (from M3) output listings |
 | `PUT /api/items/:id`, `DELETE …` | Save or delete an item file |
 | `PUT /api/strokes` | Save `strokes.json` |
-| `POST /api/assets` | Upload a pasted or dropped image; returns its `src` |
+| `POST /api/assets?id=<item-id>` | Upload a pasted or dropped image (raw body, at most 25 MB; PNG, JPEG, GIF, WebP or SVG by `Content-Type`) as `assets/<item-id>.<ext>`; returns its `src` |
 | `GET /api/files/*` | Serve files under `.post-lab/assets/` and `.post-lab/outputs/` only |
 | `POST /api/cells/:id/run` | Run a cell; responds when the run finishes with exit code and stderr |
 

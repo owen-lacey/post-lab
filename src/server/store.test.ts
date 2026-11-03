@@ -147,6 +147,33 @@ describe('board store', () => {
     expect(events).toEqual([]);
   });
 
+  it('amends an item as it is now, writes it and tells subscribers', async () => {
+    await store.putItem(
+      'c3ll0001',
+      { type: 'cell', x: 7, y: 400, w: 300, h: 200, command: 'true' },
+      '',
+    );
+    await store.amendItem('c3ll0001', (item) => ({ ...item, body: 'Amended\n' }));
+    const amended = {
+      type: 'cell',
+      x: 7,
+      y: 400,
+      w: 300,
+      h: 200,
+      command: 'true',
+      id: 'c3ll0001',
+      body: 'Amended\n',
+    };
+    expect(events).toEqual([{ type: 'item', item: amended }]);
+    expect(await readFile(path('items/c3ll0001.md'), 'utf8')).toBe(
+      CELL.replace('x: 0', 'x: 7') + 'Amended\n',
+    );
+    await store.amendItem('c3ll0001', () => undefined);
+    await store.amendItem('m1ss1ng0', (item) => item);
+    await settle();
+    expect(events).toHaveLength(1);
+  });
+
   it('deletes an item file without echoing it back', async () => {
     expect(await store.deleteItem('c3ll0001')).toBe(true);
     expect(await store.deleteItem('c3ll0001')).toBe(false);

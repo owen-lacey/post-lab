@@ -23,26 +23,15 @@ import { useBoard } from './board-context';
 import { mergeEdges, mergeNodes } from './canvas/merge';
 import { newConnector } from './canvas/new-item';
 import { edgeTypes, nodeTypes } from './canvas/node-types';
-import { placeDropped, placementChanged, type FrameBox } from './canvas/placement';
+import { frameBoxes, placeDropped, placementChanged } from './canvas/placement';
 import { toFlow, type ConnectorEdge, type ItemNode, type PositionedItem } from './canvas/to-flow';
+import { useImageDrop } from './canvas/use-image-drop';
 import { ProblemsPanel } from './ProblemsPanel';
 import { CreateToolbar, type PendingItem } from './toolbar/CreateToolbar';
 import { StylePicker } from './toolbar/StylePicker';
 
 const isValidConnection: IsValidConnection = (connection) =>
   connection.source !== connection.target;
-
-function frameBoxes(nodes: ItemNode[]): FrameBox[] {
-  return nodes
-    .filter((node) => node.type === 'frame')
-    .map((node) => ({
-      id: node.id,
-      x: node.position.x,
-      y: node.position.y,
-      w: node.data.item.w,
-      h: node.data.item.h,
-    }));
-}
 
 /**
  * Nodes and edges on screen: rebuilt from the board's items whenever they change, and changed
@@ -141,6 +130,11 @@ function Canvas({ repo, board }: { repo: string; board: Board }) {
     if (item.type !== 'cell' && item.type !== 'link') setEditingId(item.id);
   });
 
+  const imageDrop = useImageDrop(nodes, (item) => {
+    selectOnCreate(item.id);
+    saveItem(item);
+  });
+
   const selected = nodes.filter((node) => node.selected === true).map((node) => node.data.item);
 
   return (
@@ -155,6 +149,8 @@ function Canvas({ repo, board }: { repo: string; board: Board }) {
       onDelete={onDelete}
       onConnect={onConnect}
       isValidConnection={isValidConnection}
+      onDragOver={imageDrop.onDragOver}
+      onDrop={imageDrop.onDrop}
       onPaneClick={placement.place}
       onNodeClick={placement.place}
       className={cn(placement.pending && 'flow-surfaces:cursor-crosshair!')}

@@ -31,7 +31,7 @@ export function send(
     method = 'GET',
     headers = {},
     body,
-  }: { method?: string; headers?: Record<string, string>; body?: string } = {},
+  }: { method?: string; headers?: Record<string, string>; body?: string | Buffer } = {},
 ): Promise<Reply> {
   return new Promise((resolve, reject) => {
     const req = httpRequest(

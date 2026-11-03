@@ -1,11 +1,15 @@
 import { basename, join } from 'node:path';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { streamSSE } from 'hono/streaming';
 import { BOARD_DIR } from '../shared/board';
 import { ID_PATTERN } from '../shared/schemas';
+import { IMAGE_EXTENSIONS, imageExtension, MAX_IMAGE_BYTES } from '../shared/images';
+import { saveAsset } from './assets';
 import { createCellRunner, type CellItem } from './cells';
 import { parseItemRequest } from './item-request';
+import type { LinkPreviews } from './link-previews';
 import { originGuard } from './security';
 import type { BoardStore } from './store';
 
@@ -20,7 +24,11 @@ export interface AppOptions {
 
 const FILES_PREFIX = '/api/files';
 
-export function createApp({ hostRoot, publicPort, uiDir }: AppOptions, store: BoardStore): Hono {
+export function createApp(
+  { hostRoot, publicPort, uiDir }: AppOptions,
+  store: BoardStore,
+  previews: LinkPreviews,
+): Hono {
   const app = new Hono();
 
   const cells = createCellRunner(hostRoot);
@@ -50,13 +58,32 @@ export function createApp({ hostRoot, publicPort, uiDir }: AppOptions, store: Bo
   app.put('/api/items/:id', async (c) => {
     const parsed = parseItemRequest(await c.req.text());
     if (!parsed.ok) return c.text(parsed.message, 400);
-    await store.putItem(c.req.param('id'), parsed.frontmatter, parsed.body);
+    const id = c.req.param('id');
+    await store.putItem(id, parsed.frontmatter, parsed.body);
+    previews.check({ ...parsed.frontmatter, id, body: parsed.body });
     return c.body(null, 204);
   });
   app.delete('/api/items/:id', async (c) => {
     if (!(await store.deleteItem(c.req.param('id')))) return c.notFound();
     return c.body(null, 204);
   });
+  app.post(
+    '/api/assets',
+    bodyLimit({
+      maxSize: MAX_IMAGE_BYTES,
+      onError: (c) => c.text(`Images can be at most ${String(MAX_IMAGE_BYTES)} bytes`, 413),
+    }),
+    async (c) => {
+      const id = c.req.query('id') ?? '';
+      if (!ID_PATTERN.test(id)) return c.text(`Item IDs match ${ID_PATTERN.source}`, 400);
+      const extension = imageExtension(c.req.header('content-type'));
+      if (extension === undefined) {
+        return c.text(`Images must be one of ${Object.keys(IMAGE_EXTENSIONS).join(', ')}`, 415);
+      }
+      const data = Buffer.from(await c.req.arrayBuffer());
+      return c.json({ src: await saveAsset(hostRoot, `${id}.${extension}`, data) });
+    },
+  );
   app.post('/api/cells/:id/run', async (c) => {
     const id = c.req.param('id');
     const cell = store

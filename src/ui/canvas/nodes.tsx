@@ -1,10 +1,14 @@
 import { Link2 } from 'lucide-react';
+import { lazy, Suspense } from 'react';
 import { fileUrl } from '@/lib/files';
 import { cn } from '@/lib/utils';
 import { DEFAULT_ALIGN, DEFAULT_COLOR, DEFAULT_SIZE } from '../../shared/palette';
 import { EditableText, ItemHandles, ItemResizer } from './node-parts';
+import { isPlayable } from './playable';
 import type { ItemNodeProps, ItemOf } from './to-flow';
 import { ALIGN_CLASSES, COLOR_CLASSES, SIZE_CLASSES } from './tokens';
+
+const LinkPlayer = lazy(() => import('./LinkPlayer'));
 
 export function NoteNode({ data: { item }, selected }: ItemNodeProps<'note'>) {
   const color = COLOR_CLASSES[item.color ?? DEFAULT_COLOR.note];
@@ -116,19 +120,14 @@ export function ImageNode({ data: { item }, selected }: ItemNodeProps<'image'>) 
   );
 }
 
-export function LinkNode({ data: { item }, selected }: ItemNodeProps<'link'>) {
+function LinkHeader({ item }: { item: ItemOf<'link'> }) {
   const title = item.preview?.title ?? new URL(item.url).hostname;
   return (
-    <div className="flex size-full flex-col gap-1 overflow-hidden rounded-lg border bg-card p-3 text-card-foreground shadow-sm">
-      <ItemHandles />
-      <ItemResizer item={item} selected={selected} />
+    <div className="flex min-w-0 flex-col">
       <p className="flex items-center gap-2 font-medium">
         <Link2 className="size-4 shrink-0 text-muted-foreground" />
         <span className="truncate">{title}</span>
       </p>
-      {item.preview?.description !== undefined && (
-        <p className="line-clamp-2 text-sm text-muted-foreground">{item.preview.description}</p>
-      )}
       <a
         href={item.url}
         target="_blank"
@@ -137,6 +136,46 @@ export function LinkNode({ data: { item }, selected }: ItemNodeProps<'link'>) {
       >
         {item.url}
       </a>
+    </div>
+  );
+}
+
+/** The Open Graph thumbnail and description, for a link that doesn't play inline. */
+function LinkPreviewCard({ preview }: { preview: ItemOf<'link'>['preview'] }) {
+  if (preview?.image === undefined && preview?.description === undefined) return null;
+  return (
+    <div className="flex min-h-0 flex-1 gap-2">
+      {preview.image !== undefined && (
+        <img
+          src={preview.image}
+          alt=""
+          draggable={false}
+          className="aspect-video h-full max-h-24 shrink-0 rounded-md object-cover"
+        />
+      )}
+      {preview.description !== undefined && (
+        <p className="line-clamp-3 text-sm text-muted-foreground">{preview.description}</p>
+      )}
+    </div>
+  );
+}
+
+/** A link: plays inline when react-player supports it, otherwise a preview card. */
+export function LinkNode({ data: { item }, selected }: ItemNodeProps<'link'>) {
+  return (
+    <div className="flex size-full flex-col gap-2 overflow-hidden rounded-lg border bg-card p-3 text-card-foreground shadow-sm">
+      <ItemHandles />
+      <ItemResizer item={item} selected={selected} />
+      <LinkHeader item={item} />
+      {isPlayable(item.url) ? (
+        <div className="nodrag nopan nowheel min-h-0 flex-1 overflow-hidden rounded-md bg-muted">
+          <Suspense>
+            <LinkPlayer url={item.url} />
+          </Suspense>
+        </div>
+      ) : (
+        <LinkPreviewCard preview={item.preview} />
+      )}
       <EditableText item={item} className="text-sm" editorClassName="min-h-12 resize-none" />
     </div>
   );
