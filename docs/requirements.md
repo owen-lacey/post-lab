@@ -1,6 +1,6 @@
 # post-lab requirements
 
-Status: requirements questions resolved as D1–D5; solution decisions D6 onwards (2026-10-27). Collected from `CLAUDE.md`, `next-session.md` and the discussion that aborted `docs/plan.md`. Lists **what** post-lab must do, not how.
+Status: requirements questions resolved as D1–D5; solution decisions D6 onwards (2026-10-27); D15 (one board, `.post-lab/`) added 2026-11-02. Collected from `CLAUDE.md`, `next-session.md` and the discussion that aborted `docs/plan.md`. Lists **what** post-lab must do, not how.
 ## Purpose
 
 - R1. A labs tool for storyboarding and data analysis for blog posts.
@@ -14,7 +14,7 @@ Status: requirements questions resolved as D1–D5; solution decisions D6 onward
 - R6. Shapes, frames (grouping areas) and arrows/connectors between items.
 - R6a. Content items are styled with a small token set: colour from a fixed palette (~8 colours), size S/M/L, text alignment. Clean, non-hand-drawn look. The UI offers no style options for content items beyond the tokens. Shapes are content items and use the tokens (D7). Opaque freehand strokes may use their own styling (D2).
 - R7. Text boxes and stickies, usable without any code cells. Their text displays as typed; markdown is not rendered (D3).
-- R8. Multiple boards per host repo.
+- R8. Dropped: one board per host repo (D15).
 
 ## Moodboard
 
@@ -92,29 +92,28 @@ Status: requirements questions resolved as D1–D5; solution decisions D6 onward
   - Each connector is its own item file (type connector, with `from`, `to` and an optional label).
   - Shapes are item files like notes, styled with tokens. With React Flow they are our own components, so storing them as content costs nothing; this narrows D1's opaque scope to freehand strokes only.
   - Item IDs, which are also the filenames, are short random IDs. No clash handling or rename logic is needed, and the ID never goes stale when an item's text changes.
-  - Layout in the host repo:
+  - Layout in the host repo (revised by D15: one board, in `.post-lab/`):
     ```
-    post-lab/
+    .post-lab/
       README.md                 # agent/human guide to the format (R25)
-      boards/<slug>/
-        items/<id>.md
-        strokes.json
-        assets/<file>           # images; an image item's frontmatter has `src: assets/<file>`
-        outputs/<cell-id>/      # files a cell writes, committed (R17)
+      items/<id>.md
+      strokes.json              # optional; missing means no strokes
+      assets/<file>             # images; an image item's frontmatter has `src: assets/<file>`
+      outputs/<cell-id>/        # files a cell writes, committed (R17)
     ```
-  - No board metadata file: a board's name is its folder slug, and no requirement needs more. Images and outputs stay inside their board, so a board is self-contained and deleting it leaves nothing behind. Pasted images are saved as `<item-id>.<ext>`; agents may add images under any filename and point `src` at them.
+  - No board metadata file: no requirement needs one. Images and outputs stay inside `.post-lab/`, so the board is self-contained and deleting it leaves nothing behind. Pasted images are saved as `<item-id>.<ext>`; agents may add images under any filename in `assets/` and point `src` at them.
   - Items inside a frame store `frame: <id>` and positions relative to the frame, matching React Flow sub flows.
   - Rationale: one file per item satisfies R20 (change one item without loading the board) and keeps agent and UI edits on different files, so fewer git conflicts. A markdown body needs no YAML escaping for text, which makes it the easiest form for agents and humans to edit. Strokes are opaque (D1) and noisy, so one file keeps the items folder readable. Connector files mean deleting or editing a connector never touches another item. Relative positions make moving a frame a single file edit.
   - Facts considered: gray-matter's built-in `---js` engine evals the file, and its `stringify` breaks byte-for-byte round trips (from `docs/plan.md`). JSON Canvas was rejected: one file per board breaks R20 and causes more conflicts.
 
-- D8. Live sync. **Decision: a local Node server (Hono) watches `post-lab/boards/` with chokidar and pushes changed items to the UI over Server-Sent Events. The UI saves items with HTTP PUT. Last write wins: the file on disk is the truth, incoming changes replace the item in the UI, and the next UI save overwrites the file.**
+- D8. Live sync. **Decision: a local Node server (Hono) watches `.post-lab/` with chokidar and pushes changed items to the UI over Server-Sent Events. The UI saves items with HTTP PUT. Last write wins: the file on disk is the truth, incoming changes replace the item in the UI, and the next UI save overwrites the file.**
   - Rationale: changes only need to flow from server to UI, so SSE is enough. Browsers' EventSource reconnects on its own, so no reconnecting-socket library is needed, and Hono has built-in `streamSSE`. A clash between a UI edit and a disk edit of the same item is rare, costs one edit, and git keeps the history.
   - Facts considered: chokidar handles editors' atomic saves. In chokidar 6, `unlink` is not delayed by `awaitWriteFinish`, so re-read the file from disk at refresh time rather than trusting the event type. Echo suppression worked by updating the in-memory store before writing and comparing content hashes (both from `docs/plan.md`). Rejected: WebSocket (two-way channel plus a reconnect library for a one-way flow), polling (laggy, can lose edits).
 
 - D9. Cell execution and security. **Decision:**
   - A cell's frontmatter has `command`, a shell string (e.g. `uv run analysis/churn.py`), and an optional `cwd` relative to the host repo root.
   - Cells run only when the user clicks Run in the UI, never on file changes.
-  - A run empties `outputs/<cell-id>/`, sets `$POST_LAB_OUT` to it, and runs the command via execa. stdout is saved there as `stdout.txt`, so it is committed with the other outputs (R17). stderr and the exit code are shown when a run fails.
+  - A run empties `.post-lab/outputs/<cell-id>/`, sets `$POST_LAB_OUT` to it, and runs the command via execa. stdout is saved there as `stdout.txt`, so it is committed with the other outputs (R17). stderr and the exit code are shown when a run fails.
   - The server binds to 127.0.0.1 and rejects any request whose Host header is not its own, and any state-changing request whose Origin is not its own. GET routes have no side effects. There is no sign-in, token or session cookie.
   - Rationale: a shell string lets cells use pipes, globs and `&&`, and agents write it naturally. Running only on a click means an agent's edit to a cell file never executes code by itself. Host/Origin checks block cross-site requests and DNS rebinding from other web pages in the user's own browser (R29). Browsers let any page send GETs but not read the replies, so GETs must not change anything.
   - Revised 2026-11-02: M1 first shipped a one-time launch token swapped for a session cookie. post-lab is only ever used locally by one user, so the token only guarded against other users on a shared machine, or processes that can reach localhost but can't already run code as the user. That was not worth a sign-in link and a new one on every dev restart, so it was removed.
@@ -123,10 +122,10 @@ Status: requirements questions resolved as D1–D5; solution decisions D6 onward
 - D10. Distribution and build. **Decision: a published npm package with a `post-lab` bin, run with `npx post-lab` from the host repo root. Host repos with a package.json may add it as a devDependency to pin the version. The React + TypeScript frontend is built with Vite at publish time and served by the Hono server; in development the Vite dev server proxies `/api`.**
   - Rationale: works in host repos without a package.json (e.g. Python-only analysis repos) and still allows pinning. Node stays the only prerequisite (R26). Rejected: requiring a devDependency (every host repo would need a package.json).
 
-- D11. Agent guide. **Decision: post-lab owns `post-lab/README.md` and rewrites it on every launch. The file says at the top that it is generated and that hand edits are lost.**
+- D11. Agent guide. **Decision: post-lab owns `.post-lab/README.md` and rewrites it on every launch. The file says at the top that it is generated and that hand edits are lost.**
   - Rationale: the guide always matches the running version's format (R25). Rejected: writing it once (goes stale when the format changes), a separate generated `FORMAT.md` beside a user-owned README (two files for agents to find).
 
-- D12. Output renderers. **Decision: every file in `outputs/<cell-id>/` renders, sorted by name, with the renderer chosen by extension alone:**
+- D12. Output renderers. **Decision: every file in `.post-lab/outputs/<cell-id>/` renders, sorted by name, with the renderer chosen by extension alone:**
   - `.png`, `.jpg`, `.gif`, `.webp`, `.svg`: images.
   - `.csv`, and `.json` holding an array of objects: tables with TanStack Table. A `.json` that is not an array of objects shows an error.
   - `.vl.json`: Vega-Lite charts with vega-embed.
@@ -142,3 +141,7 @@ Status: requirements questions resolved as D1–D5; solution decisions D6 onward
 
 - D14. Dev tooling. **Decision: pnpm, Vitest, ESLint with typescript-eslint (`complexity` max 10, enforcing R32), and Prettier.**
   - Facts considered: pnpm 12 blocks dependency build scripts until approved (`allowBuilds` in `pnpm-workspace.yaml`, needed for esbuild) and enforces a minimum release age. TypeScript 6 defaults `types` to `[]`, so each tsconfig must list `node` or `vite/client`. shadcn's generated components fail `react-refresh/only-export-components` and a no-inline-`style` rule, so those rules must exclude `components/ui/**` (all from `docs/plan.md`).
+
+- D15. One board per host repo (2026-11-02). **Decision: a host repo has exactly one board, stored directly in `.post-lab/` at the repo root (layout in D7). R8 is dropped. `npx post-lab` looks for `.post-lab/` in the directory it runs from; if it is missing it asks `No board found in this directory, start a new one? (Y/n)`, creates `.post-lab/items/` on yes and exits on no. The guide (D11) is rewritten on every launch. A board with no items opens as a blank canvas.**
+  - Rationale: a blog post's repo needs one storyboard, so a board list, slugs and board routing are cost with no use. The leading dot marks the folder as tool-managed files, not part of the post. Asking before creating anything means running post-lab in the wrong directory leaves no trace.
+  - Rejected: `post-lab/boards/<slug>/` (multiple boards per repo, the original D7 layout).

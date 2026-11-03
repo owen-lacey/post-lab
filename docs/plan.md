@@ -1,6 +1,6 @@
 # post-lab v1 implementation plan
 
-Status: plan, no code yet (2026-10-29). Implements `docs/requirements.md` (R1–R33, decisions D1–D14); read that first. This plan does not reopen those decisions. Where it fixes a detail they leave open (field names, API routes, milestone order), it says so under "Plan-level details".
+Status: M1 done; revised 2026-11-02 for D15 (one board per host repo, in `.post-lab/`). Implements `docs/requirements.md` (R1–R33, decisions D1–D15); read that first. This plan does not reopen those decisions. Where it fixes a detail they leave open (field names, API routes, milestone order), it says so under "Plan-level details".
 
 Versions below were checked against the npm registry on 2026-10-29.
 
@@ -17,9 +17,10 @@ Versions below were checked against the npm registry on 2026-10-29.
 | Invalid files | Zod schemas are strict (unknown keys are errors). An invalid item file is not rendered; it appears in a board-level Problems panel with the file path and the zod message. |
 | Writes | All file writes go through write-file-atomic (ISC). |
 | Port | Default 4870, overridable with `--port`. If the port is busy, post-lab exits with an error. |
-| Host root | The directory `npx post-lab` is run from. post-lab creates `post-lab/boards/` there if missing. |
+| Host root | The directory `npx post-lab` is run from. If `.post-lab/` is missing there, post-lab asks `No board found in this directory, start a new one? (Y/n)` (empty answer means yes); yes creates `.post-lab/items/`, no exits without creating anything (D15). |
+| Cross-item checks | Also reported as Problems, and the item is not rendered: `frame` naming a missing or non-frame item, connector `from`/`to` naming a missing item, a filename that is not `<id>.md`, a non-`.md` file in `items/`, an image `src` outside `assets/`. `strokes.json` is optional; an invalid one is a Problem. |
 | Link previews | When a link item has no `preview`, the server fetches Open Graph data (open-graph-scraper) once and writes it into the item's frontmatter, so it is committed and never refetched. Known providers (YouTube, Vimeo, etc.) play inline with react-player. |
-| HTML outputs | Besides the `allow-scripts`-only iframe sandbox (D12), the server sends `Content-Security-Policy: sandbox allow-scripts` with every `.html` output, so it stays sandboxed even if opened directly. |
+| Served files | Besides the `allow-scripts`-only iframe sandbox for `.html` outputs (D12), the server sends `Content-Security-Policy: sandbox allow-scripts` with every file from `/api/files/*`, so an `.html` or `.svg` opened directly runs in an opaque origin and cannot pass the Origin check. |
 | Cell runs | One run per cell at a time; a second run request while one is in progress returns 409. Child processes are killed when post-lab exits. |
 
 ### Out of scope for v1
@@ -41,7 +42,7 @@ Common frontmatter for positioned items: `type`, `x`, `y`, `w`, `h`, optional `z
 | `cell` | `command` (shell string), optional `cwd` (relative to host root) | description, optional |
 | `connector` | `from`, `to` (item IDs); no position or size | label, optional |
 
-Example, `post-lab/boards/churn-post/items/k3f9a0qz.md`:
+Example, `.post-lab/items/k3f9a0qz.md`:
 
 ```markdown
 ---
@@ -86,14 +87,13 @@ All routes are under `/api`. Every request must carry post-lab's own Host, and e
 | Route | Purpose |
 |---|---|
 | `GET /api/info` | Host repo name |
-| `GET /api/events` | SSE stream: `item`, `item-removed`, `strokes`, `outputs`, `problems`, `boards` events |
-| `GET /api/boards`, `POST /api/boards` | List boards; create one by slug |
-| `GET /api/boards/:slug` | Items, strokes, problems and output listings for one board |
-| `PUT /api/boards/:slug/items/:id`, `DELETE …` | Save or delete an item file |
-| `PUT /api/boards/:slug/strokes` | Save `strokes.json` |
-| `POST /api/boards/:slug/assets` | Upload a pasted or dropped image; returns its `src` |
-| `GET /api/boards/:slug/files/*` | Serve assets and outputs |
-| `POST /api/boards/:slug/cells/:id/run` | Run a cell; responds when the run finishes with exit code and stderr |
+| `GET /api/events` | SSE stream: `item`, `item-removed`, `strokes`, `outputs`, `problems` events |
+| `GET /api/board` | Items, strokes, problems and (from M3) output listings |
+| `PUT /api/items/:id`, `DELETE …` | Save or delete an item file |
+| `PUT /api/strokes` | Save `strokes.json` |
+| `POST /api/assets` | Upload a pasted or dropped image; returns its `src` |
+| `GET /api/files/*` | Serve files under `.post-lab/assets/` and `.post-lab/outputs/` only |
+| `POST /api/cells/:id/run` | Run a cell; responds when the run finishes with exit code and stderr |
 
 ## Dependencies
 
@@ -126,16 +126,17 @@ Accept:
 ### M2. Item format, read-only canvas and agent guide
 
 - Zod schemas for every item type and `strokes.json`; parse/serialize with byte-for-byte round trips.
-- Board store loads all boards from disk; Problems list for invalid files.
-- Board list and create-board UI.
-- React Flow canvas rendering every item type read-only: notes, text, shapes, frames (sub flows), connectors (edges), images (from `files/`), links (card without preview yet), cells (command and description, no outputs yet).
-- Agent guide (D11): `post-lab/README.md` rewritten on every launch, with the field reference generated from the zod schemas via `z.toJSONSchema()`.
+- Board loads from `.post-lab/` on each `GET /api/board` (the cached store arrives with the watcher in M4); Problems list for invalid files and broken cross-item references.
+- CLI start-up prompt when `.post-lab/` is missing (D15).
+- React Flow canvas rendering every item type read-only: notes, text, shapes, frames (sub flows), connectors (edges), images (via `/api/files/*`), links (card without fetched preview yet), cells (command and description, no outputs yet). A board with no items is a blank canvas.
+- Agent guide (D11): `.post-lab/README.md` rewritten on every launch, with the field reference generated from the zod schemas via `z.toJSONSchema()`.
 
 Accept:
 - A board written by hand in `examples/demo` renders with correct positions, frames, connectors and tokens.
 - An invalid file appears in the Problems panel and the rest of the board still renders.
 - Round-trip tests pass for every item type, including an empty body.
-- An agent given only `post-lab/README.md` can add a valid note and connector.
+- An agent given only `.post-lab/README.md` can add a valid note and connector.
+- In a directory without `.post-lab/`, answering no creates nothing; answering yes creates `.post-lab/` and opens a blank canvas.
 
 ### M3. Cells
 
@@ -188,5 +189,5 @@ Accept:
 - Publishing to npm happens only when the user asks.
 
 Accept:
-- The packed tarball starts with `npx` in a repo without a package.json and creates `post-lab/README.md` and `post-lab/boards/`.
+- The packed tarball starts with `npx` in a repo without a package.json and, after `y` is answered at the prompt, creates `.post-lab/README.md` and `.post-lab/items/`.
 - Installing it as a devDependency and running `npx post-lab` uses the pinned local copy.

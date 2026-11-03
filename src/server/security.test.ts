@@ -1,62 +1,16 @@
-import { request as httpRequest } from 'node:http';
-import { createServer } from 'node:net';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { startServer, type RunningServer } from './start';
-
-interface Reply {
-  status: number;
-  body: string;
-}
-
-function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const probe = createServer();
-    probe.once('error', reject);
-    probe.listen(0, '127.0.0.1', () => {
-      const address = probe.address();
-      probe.close(() => {
-        if (address !== null && typeof address === 'object') resolve(address.port);
-        else reject(new Error('No port assigned'));
-      });
-    });
-  });
-}
-
-function send(
-  port: number,
-  path: string,
-  { method = 'GET', headers = {} }: { method?: string; headers?: Record<string, string> } = {},
-): Promise<Reply> {
-  return new Promise((resolve, reject) => {
-    const req = httpRequest(
-      {
-        host: '127.0.0.1',
-        port,
-        path,
-        method,
-        headers: { host: `127.0.0.1:${String(port)}`, ...headers },
-      },
-      (res) => {
-        let body = '';
-        res.setEncoding('utf8');
-        res.on('data', (chunk: string) => (body += chunk));
-        res.on('end', () => {
-          resolve({ status: res.statusCode ?? 0, body });
-        });
-      },
-    );
-    req.once('error', reject);
-    req.end();
-  });
-}
+import { freePort, makeHost, send } from './test-helpers';
 
 describe('server security', () => {
   let port: number;
+  let hostRoot: string;
   let server: RunningServer;
 
   beforeEach(async () => {
     port = await freePort();
-    server = await startServer({ hostRoot: '/tmp/host-repo', port, publicPort: port });
+    hostRoot = await makeHost({ '.post-lab/README.md': '' });
+    server = await startServer({ hostRoot, port, publicPort: port });
   });
 
   afterEach(async () => {
@@ -97,8 +51,8 @@ describe('server security', () => {
   });
 
   it('fails to start when the port is already in use', async () => {
-    await expect(
-      startServer({ hostRoot: '/tmp/host-repo', port, publicPort: port }),
-    ).rejects.toMatchObject({ code: 'EADDRINUSE' });
+    await expect(startServer({ hostRoot, port, publicPort: port })).rejects.toMatchObject({
+      code: 'EADDRINUSE',
+    });
   });
 });

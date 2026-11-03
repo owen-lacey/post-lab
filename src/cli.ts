@@ -1,7 +1,10 @@
 #!/usr/bin/env node
+import { stdin, stdout } from 'node:process';
+import { createInterface } from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import open from 'open';
+import { boardExists, createBoard, writeGuide } from './server/host';
 import { startServer } from './server/start';
 
 const DEFAULT_PORT = 4870;
@@ -18,6 +21,29 @@ function isAddressInUse(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'EADDRINUSE';
 }
 
+async function confirmNewBoard(): Promise<boolean> {
+  const prompt = createInterface({ input: stdin, output: stdout });
+  // Input that ends without an answer (closed stdin) creates nothing.
+  const answer = await new Promise<string | undefined>((resolve) => {
+    prompt.once('close', () => {
+      resolve(undefined);
+    });
+    void prompt.question('No board found in this directory, start a new one? (Y/n) ').then(resolve);
+  });
+  prompt.close();
+  return answer !== undefined && /^(y|yes)?$/i.test(answer.trim());
+}
+
+/** Makes sure the host repo has a board (asking before creating one) and a current guide. */
+async function prepareBoard(hostRoot: string): Promise<boolean> {
+  if (!(await boardExists(hostRoot))) {
+    if (!(await confirmNewBoard())) return false;
+    await createBoard(hostRoot);
+  }
+  await writeGuide(hostRoot);
+  return true;
+}
+
 async function main(): Promise<void> {
   const { values } = parseArgs({
     allowNegative: true,
@@ -27,8 +53,13 @@ async function main(): Promise<void> {
     },
   });
   const port = parsePort(values.port);
+  const hostRoot = process.cwd();
+  if (!(await prepareBoard(hostRoot))) {
+    console.log('No board created.');
+    return;
+  }
   const server = await startServer({
-    hostRoot: process.cwd(),
+    hostRoot,
     port,
     publicPort: port,
     uiDir: fileURLToPath(new URL('./ui', import.meta.url)),

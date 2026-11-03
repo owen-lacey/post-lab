@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Being specified in `docs/requirements.md` (requirements R1–R33, decisions D1 onwards). All solution choices are decided (D6–D14). `docs/plan.md` is the implementation plan (milestones M1–M7). M1 (scaffold and secure server) is done.
+Being specified in `docs/requirements.md` (requirements R1–R33, decisions D1 onwards). All solution choices are decided (D6–D15). `docs/plan.md` is the implementation plan (milestones M1–M7). M1 (scaffold and secure server) and M2 (item format, read-only canvas, agent guide) are done.
 
 ## Commands
 
@@ -20,25 +20,26 @@ Node 24.15+ is required; if the shell resolves an older Node, prefix PATH with `
 - **Canvas**: React Flow (`@xyflow/react`); freehand drawing via perfect-freehand. Items are custom React nodes; frames are sub flows; connectors are edges (D6).
 - **UI chrome**: Tailwind + shadcn/ui + Lucide (R33).
 - **Item files**: markdown with YAML frontmatter, split by post-lab and parsed with `yaml` (not gray-matter) (D7).
-- **Server and sync**: local Node server (Hono); chokidar watches boards; changes pushed to the UI over SSE; UI saves via HTTP PUT; last write wins, disk is the truth (D8).
+- **Server and sync**: local Node server (Hono); chokidar watches `.post-lab/`; changes pushed to the UI over SSE; UI saves via HTTP PUT; last write wins, disk is the truth (D8).
 - **Cells**: frontmatter `command` (shell string) + optional `cwd`; run only on a click in the UI; output dir emptied and exposed as `$POST_LAB_OUT`; run via execa; stdout saved as `stdout.txt` (D9).
 - **Security**: local, single-user only. Bind 127.0.0.1; Host check on every request; Origin check on state-changing requests; GET routes have no side effects; no sign-in (D9).
 - **Distribution**: npm package with a `post-lab` bin, run via `npx post-lab` from the host repo root (optionally pinned as a devDependency). Vite + React + TypeScript frontend built at publish time and served by Hono (D10).
-- **Agent guide**: post-lab rewrites `post-lab/README.md` on every launch (D11).
+- **Agent guide**: post-lab rewrites `.post-lab/README.md` on every launch (D11).
 - **Output renderers**: by extension — images native; `.csv`/`.json` tables via TanStack Table; `.vl.json` via vega-embed; `.html` in an `allow-scripts`-only sandboxed iframe; `.md` via react-markdown; `stdout.txt` as text; anything else as a file link (D12).
 - **Validation**: zod 4; the guide's field reference is generated with `z.toJSONSchema()` (D13).
 - **Tooling**: pnpm, Vitest, ESLint (`complexity` max 10) + typescript-eslint, Prettier (D14).
 
 ## Board storage (in the host repo)
 
+One board per host repo (D15). If `.post-lab/` is missing, the CLI asks before creating it.
+
 ```
-post-lab/
-  README.md                 # agent/human guide to the format
-  boards/<slug>/
-    items/<id>.md           # one content item: frontmatter (type, position, size, tokens, frame, cell settings) + text body
-    strokes.json            # all freehand strokes for the board (opaque)
-    assets/<file>           # images, referenced by an image item's `src`
-    outputs/<cell-id>/      # cell outputs, committed to git
+.post-lab/
+  README.md                 # agent/human guide to the format, rewritten on every launch
+  items/<id>.md             # one content item: frontmatter (type, position, size, tokens, frame, cell settings) + text body
+  strokes.json              # all freehand strokes (opaque); optional
+  assets/<file>             # images, referenced by an image item's `src`
+  outputs/<cell-id>/        # cell outputs, committed to git
 ```
 
 - Item types: note/sticky, text, shape, image, link embed, frame, connector, cell. IDs are short random strings.
