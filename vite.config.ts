@@ -15,15 +15,27 @@ export default defineConfig({
     emptyOutDir: true,
     rolldownOptions: {
       output: {
-        // vega-embed pulls in all of Vega, Vega-Lite and d3, which load only when a chart output
-        // is shown. maxSize splits them into chunks under Vite's 500 kB size warning.
+        // Each group takes the modules it matches plus their dependencies, highest priority
+        // first, keeping every chunk under Vite's 500 kB warning. React Flow's d3 modules go
+        // to `react` first, so the lazy chart chunks import from the eager ones and never the
+        // other way round: such a cycle breaks module initialisation in the built UI.
         codeSplitting: {
           groups: [
             {
-              name: 'charts',
-              test: /node_modules[\\/](vega(-[^\\/]+)?|d3-[^\\/]+)[\\/]/,
-              maxSize: 450_000,
+              name: 'react',
+              test: /node_modules[\\/](react|react-dom|scheduler|@xyflow)[\\/]/,
+              priority: 5,
             },
+            { name: 'radix', test: /node_modules[\\/](radix-ui|@radix-ui)[\\/]/, priority: 4 },
+            // The d3 modules Vega uses (React Flow's own are already in `react`).
+            { name: 'd3', test: /node_modules[\\/]d3-[^\\/]+[\\/]/, priority: 3 },
+            // vega-embed pulls in Vega and Vega-Lite, which load only when a chart is shown.
+            {
+              name: 'vega',
+              test: /node_modules[\\/]vega(-(?!embed|lite)[^\\/]+)?[\\/]/,
+              priority: 2,
+            },
+            { name: 'vega-lite', test: /node_modules[\\/]vega-lite[\\/]/, priority: 1 },
           ],
         },
       },
