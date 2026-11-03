@@ -30,7 +30,7 @@ Versions below were checked against the npm registry on 2026-10-29.
 
 ### Out of scope for v1
 
-Not required by `docs/requirements.md`, so not built: undo/redo, board export (D4), rendered markdown in notes (D3), multi-user collaboration, cancelling a running cell, nested frames, free-floating arrows.
+Not required by `docs/requirements.md`, so not built: board export (D4), rendered markdown in notes (D3), multi-user collaboration, cancelling a running cell, nested frames, free-floating arrows.
 
 ## Item file format
 
@@ -187,7 +187,23 @@ Accept:
 - Strokes drawn in the UI persist across reload and update live when `strokes.json` changes on disk.
 - Drawing does not change any item file.
 
-### M7. Packaging
+### M7. Undo and redo
+
+Added 2026-11-03 at the user's request (it was out of scope for v1).
+
+- Undo history in the UI, per browser tab and in memory only (R18: nothing is persisted outside the host repo). It is cleared on reload.
+- Every canvas edit goes through `saveItem`/`deleteItems` (`src/ui/use-editor.ts`), which record a step: for each item touched, its state before (absent for a created item) and after (absent for a deleted one). One user action is one step: a multi-item drag, a style change across the selection, or deleting a frame with its children and connectors.
+- Cmd+Z undoes and Shift+Cmd+Z redoes (Ctrl on other systems). While a text editor is open, the keys go to the text box instead.
+- Undo writes each item's state before through the usual `PUT`/`DELETE`; redo writes its state after. A new edit clears the redo steps. The history keeps the last 100 steps.
+- Last write wins (D8) applies to files, not to undo: undo leaves an item alone if it has changed since the step (on disk, by an agent or in another tab), applies the rest of the step, and says in a notice which items it skipped.
+
+Accept:
+- Create, move, resize, inline text edit, style change, connect and delete each undo and redo in one step, and a file post-lab wrote returns byte for byte to its earlier content.
+- Undoing the deletion of a frame brings back the frame, its children and their connectors.
+- Undoing an edit to an item that has since changed on disk leaves that file as it is and shows a notice naming the item.
+- Cmd+Z in an open text editor undoes typing, not a board edit.
+
+### M8. Packaging
 
 - `pnpm build`: Vite builds `dist/ui`, tsdown builds `dist/cli.js`; `files` limits the package to `dist`.
 - Smoke test: `pnpm pack`, then run the tarball with `npx` in a fresh temp host repo with no package.json.

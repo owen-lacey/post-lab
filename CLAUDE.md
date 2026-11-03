@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Being specified in `docs/requirements.md` (requirements R1–R33, decisions D1 onwards). All solution choices are decided (D6–D15). `docs/plan.md` is the implementation plan (milestones M1–M7). M1 (scaffold and secure server), M2 (item format, read-only canvas, agent guide), M3 (cells and output renderers) and M4 (live sync and editing) are done.
+Being specified in `docs/requirements.md` (requirements R1–R33, decisions D1 onwards). All solution choices are decided (D6–D15). `docs/plan.md` is the implementation plan (milestones M1–M8). M1 (scaffold and secure server), M2 (item format, read-only canvas, agent guide), M3 (cells and output renderers) and M4 (live sync and editing) are done.
 
 ## Commands
 
