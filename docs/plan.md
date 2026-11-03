@@ -1,6 +1,6 @@
 # post-lab v1 implementation plan
 
-Status: M1–M5 done; revised 2026-11-02 for D15 (one board per host repo, in `.post-lab/`). Implements `docs/requirements.md` (R1–R33, decisions D1–D15); read that first. This plan does not reopen those decisions. Where it fixes a detail they leave open (field names, API routes, milestone order), it says so under "Plan-level details".
+Status: M1–M6 done; revised 2026-11-02 for D15 (one board per host repo, in `.post-lab/`). Implements `docs/requirements.md` (R1–R33, decisions D1–D15); read that first. This plan does not reopen those decisions. Where it fixes a detail they leave open (field names, API routes, milestone order), it says so under "Plan-level details".
 
 Versions below were checked against the npm registry on 2026-10-29.
 
@@ -44,7 +44,7 @@ Common frontmatter for positioned items: `type`, `x`, `y`, `w`, `h`, optional `z
 | `frame` | `color` | title |
 | `image` | `src` (path relative to the board, normally `assets/<file>`) | caption, optional |
 | `link` | `url`, optional `preview` (`title`, `description`, `image`) | note, optional |
-| `cell` | `command` (shell string), optional `cwd` (relative to host root) | description, optional |
+| `cell` | `command` (shell string), optional `cwd` (relative to host root); `h` is its least height, as it grows to fit its outputs and nothing in it scrolls | description, optional |
 | `connector` | `from`, `to` (item IDs); no position or size | label, optional |
 
 Example, `.post-lab/items/k3f9a0qz.md`:
@@ -99,6 +99,7 @@ All routes are under `/api`. Every request must carry post-lab's own Host, and e
 | `POST /api/assets?id=<item-id>` | Upload a pasted or dropped image (raw body, at most 25 MB; PNG, JPEG, GIF, WebP or SVG by `Content-Type`) as `assets/<item-id>.<ext>`; returns its `src` |
 | `GET /api/files/*` | Serve files under `.post-lab/assets/` and `.post-lab/outputs/` only |
 | `POST /api/cells/:id/run` | Run a cell; responds when the run finishes with exit code and stderr |
+| `POST /api/cells/:id/outputs/:name/open` | Open a listed output file in the user's editor (launch-editor: a running editor it recognises, else `LAUNCH_EDITOR`/`VISUAL`/`EDITOR`); 404 for anything not in the cell's output listing |
 
 ## Dependencies
 
@@ -107,7 +108,7 @@ All routes are under `/api`. Every request must carry post-lab's own Host, and e
 | Canvas | `@xyflow/react` 12.12.0 (MIT), `perfect-freehand` 1.2.3 (MIT) |
 | UI | `react` 19.3.1 (MIT), Tailwind, shadcn/ui, `lucide-react` |
 | Renderers | `@tanstack/react-table` 9.3.1 (MIT), `vega-embed` 7.3.0 + `vega-lite` 6.5.0 (BSD-3-Clause), `react-markdown` 10.1.0 (MIT), `react-player` 3.4.0 (MIT) |
-| Server | `hono` 4.13.14 (MIT), `@hono/node-server` 2.1.5 (MIT), `chokidar` 6.0.0 (MIT), `execa` 10.2.1 (MIT), `write-file-atomic` 8.0.0 (ISC), `open-graph-scraper` 6.12.0 (MIT), `open` 11.0.4 (MIT) |
+| Server | `hono` 4.13.14 (MIT), `@hono/node-server` 2.1.5 (MIT), `chokidar` 6.0.0 (MIT), `execa` 10.2.1 (MIT), `write-file-atomic` 8.0.0 (ISC), `open-graph-scraper` 6.12.0 (MIT), `open` 11.0.4 (MIT), `launch-editor` 2.14.2 (MIT) |
 | Shared | `zod` 4.6.7 (MIT), `yaml`, `nanoid` 6.0.2 (MIT) |
 | Build/dev | `vite` 8.3.5, `tsdown` 0.23.3, `vitest` 5.0.5, `tsx` 4.23.15, `typescript-eslint` 8.72.1, Prettier (all MIT) |
 | TypeScript | 6.0.x (Apache-2.0), not 7.0.2: `typescript-eslint` 8.72.1 peers `typescript >=4.8.4 <6.1.0` |
@@ -181,7 +182,8 @@ Accept:
 ### M6. Freehand drawing
 
 - Draw tool: pointer input → perfect-freehand → SVG path, each stroke a React Flow node at its bounding box.
-- Strokes saved to `strokes.json`; select and delete strokes; colour and size tokens.
+- Strokes saved to `strokes.json` (`PUT /api/strokes`); select, move (drag) and delete strokes; colour and size tokens.
+- Strokes are drawn above every item; only the ink catches the pointer, so items under the empty part of a stroke's box stay clickable.
 
 Accept:
 - Strokes drawn in the UI persist across reload and update live when `strokes.json` changes on disk.

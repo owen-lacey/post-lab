@@ -2,13 +2,15 @@ import { useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { deleteRequest, errorMessage, putJson } from '@/lib/api';
 import type { BoardEvent, ItemContent } from '../shared/board';
-import type { Item } from '../shared/schemas';
+import type { Item, Strokes } from '../shared/schemas';
 
 export interface Editor {
   /** Shows the item at once, then writes its file. */
   saveItem: (item: Item) => void;
   /** Removes the items at once, then deletes their files. */
   deleteItems: (ids: string[]) => void;
+  /** Shows the drawing at once, then writes `strokes.json`. */
+  saveStrokes: (strokes: Strokes) => void;
 }
 
 /**
@@ -47,5 +49,13 @@ export function useEditor(apply: (event: BoardEvent) => void, resync: () => void
     [apply, send],
   );
 
-  return { saveItem, deleteItems };
+  const saveStrokes = useCallback(
+    (strokes: Strokes) => {
+      apply({ type: 'strokes', strokes });
+      send(() => putJson('/api/strokes', strokes));
+    },
+    [apply, send],
+  );
+
+  return { saveItem, deleteItems, saveStrokes };
 }

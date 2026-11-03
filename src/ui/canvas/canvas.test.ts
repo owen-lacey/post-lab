@@ -58,29 +58,29 @@ describe('placeDropped', () => {
 
 describe('mergeNodes', () => {
   const items: Item[] = [note('aaaa0001'), note('aaaa0002')];
-  const [first, second] = toFlow(items).nodes as [ItemNode, ItemNode];
+  const [first, second] = toFlow(items, []).nodes as [ItemNode, ItemNode];
 
   it('keeps the on-screen node of an unchanged item', () => {
     const selected = { ...first, selected: true };
-    const [kept] = mergeNodes(toFlow(items).nodes, [selected, second]);
+    const [kept] = mergeNodes(toFlow(items, []).nodes, [selected, second]);
     expect(kept).toBe(selected);
   });
 
   it('takes a changed item’s new values but keeps its selection', () => {
-    const moved = toFlow([note('aaaa0001', { x: 70 }), items[1] as Item]).nodes;
+    const moved = toFlow([note('aaaa0001', { x: 70 }), items[1] as Item], []).nodes;
     const [merged] = mergeNodes(moved, [{ ...first, selected: true }, second]);
     expect(merged).toMatchObject({ position: { x: 70, y: 0 }, selected: true });
   });
 
   it('keeps the position of a node being dragged', () => {
-    const moved = toFlow([note('aaaa0001', { x: 70 }), items[1] as Item]).nodes;
+    const moved = toFlow([note('aaaa0001', { x: 70 }), items[1] as Item], []).nodes;
     const dragging = { ...first, position: { x: 5, y: 6 }, dragging: true };
     const [merged] = mergeNodes(moved, [dragging, second]);
     expect(merged).toMatchObject({ position: { x: 5, y: 6 }, dragging: true });
   });
 
   it('selects only a newly created item', () => {
-    const merged = mergeNodes(toFlow(items).nodes, [{ ...first, selected: true }], 'aaaa0002');
+    const merged = mergeNodes(toFlow(items, []).nodes, [{ ...first, selected: true }], 'aaaa0002');
     expect(merged.map((node) => node.selected)).toEqual([false, true]);
   });
 });
@@ -88,11 +88,11 @@ describe('mergeNodes', () => {
 describe('mergeEdges', () => {
   it('keeps the edge of an unchanged connector and the selection of a changed one', () => {
     const connector: Item = { type: 'connector', from: 'a', to: 'b', id: 'conn0001', body: '' };
-    const [edge] = toFlow([connector]).edges;
+    const [edge] = toFlow([connector], []).edges;
     if (edge === undefined) throw new Error('no edge');
     const selected = { ...edge, selected: true };
-    expect(mergeEdges(toFlow([connector]).edges, [selected])[0]).toBe(selected);
-    const relabelled = toFlow([{ ...connector, body: 'label' }]).edges;
+    expect(mergeEdges(toFlow([connector], []).edges, [selected])[0]).toBe(selected);
+    const relabelled = toFlow([{ ...connector, body: 'label' }], []).edges;
     expect(mergeEdges(relabelled, [selected])[0]).toMatchObject({ selected: true });
   });
 });

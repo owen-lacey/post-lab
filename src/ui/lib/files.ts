@@ -12,6 +12,11 @@ export function outputFolderUrl(cellId: string): string {
   return `${FILES}/outputs/${cellId}/`;
 }
 
+/** Where to POST to open an output file in the user's editor. */
+export function openOutputUrl(cellId: string, file: OutputFile): string {
+  return `/api/cells/${cellId}/outputs/${encodeURIComponent(file.name)}/open`;
+}
+
 /** URL of one output file; the version changes on every run, so a re-run is never cached. */
 export function outputUrl(cellId: string, file: OutputFile): string {
   return `${outputFolderUrl(cellId)}${encodeURIComponent(file.name)}?v=${String(file.version)}`;

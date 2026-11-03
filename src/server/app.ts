@@ -8,7 +8,8 @@ import { ID_PATTERN } from '../shared/schemas';
 import { IMAGE_EXTENSIONS, imageExtension, MAX_IMAGE_BYTES } from '../shared/images';
 import { saveAsset } from './assets';
 import { createCellRunner, type CellItem } from './cells';
-import { parseItemRequest } from './item-request';
+import { openInEditor } from './editor';
+import { parseItemRequest, parseStrokesRequest } from './item-request';
 import type { LinkPreviews } from './link-previews';
 import { originGuard } from './security';
 import type { BoardStore } from './store';
@@ -67,6 +68,12 @@ export function createApp(
     if (!(await store.deleteItem(c.req.param('id')))) return c.notFound();
     return c.body(null, 204);
   });
+  app.put('/api/strokes', async (c) => {
+    const parsed = parseStrokesRequest(await c.req.text());
+    if (!parsed.ok) return c.text(parsed.message, 400);
+    await store.putStrokes(parsed.strokes);
+    return c.body(null, 204);
+  });
   app.post(
     '/api/assets',
     bodyLimit({
@@ -92,6 +99,15 @@ export function createApp(
     if (cell === undefined) return c.notFound();
     if (cells.isRunning(id)) return c.text('This cell is already running', 409);
     return c.json(await cells.run(cell));
+  });
+  app.post('/api/cells/:id/outputs/:name/open', (c) => {
+    const { id, name } = c.req.param();
+    // Only files the board lists as this cell's outputs, so no path can reach outside them.
+    const listed = (store.board().outputs[id] ?? []).some((file) => file.name === name);
+    if (!listed) return c.notFound();
+    const problem = openInEditor(join(hostRoot, BOARD_DIR, 'outputs', id, name));
+    if (problem !== undefined) return c.text(problem, 500);
+    return c.body(null, 204);
   });
   app.get(
     `${FILES_PREFIX}/:area{assets|outputs}/*`,

@@ -2,6 +2,7 @@ import type { XYPosition } from '@xyflow/react';
 import {
   Frame,
   Link2,
+  Pencil,
   Square,
   SquareTerminal,
   StickyNote,
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useState, type SyntheticEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { linkSchema } from '../../shared/schemas';
@@ -27,6 +29,9 @@ interface ToolbarProps {
   active: string | undefined;
   /** Picks a tool (its item is placed on the next click), or cancels with undefined. */
   onPick: (pending: PendingItem | undefined) => void;
+  /** Whether the draw tool is on. */
+  drawing: boolean;
+  onDraw: (drawing: boolean) => void;
 }
 
 interface ToolProps {
@@ -87,8 +92,11 @@ function FormTool({
   );
 }
 
-/** Item tools: pick one, then click on the board where the item goes (Escape cancels). */
-export function CreateToolbar({ active, onPick }: ToolbarProps) {
+/**
+ * Item tools: pick one, then click on the board where the item goes (Escape cancels). The draw
+ * tool stays on until it is clicked again or Escape is pressed.
+ */
+export function CreateToolbar({ active, onPick, drawing, onDraw }: ToolbarProps) {
   const [command, setCommand] = useState('');
   const [cwd, setCwd] = useState('');
   const [url, setUrl] = useState('');
@@ -168,6 +176,15 @@ export function CreateToolbar({ active, onPick }: ToolbarProps) {
           }}
         />
       </FormTool>
+      <Separator orientation="vertical" className="h-5" />
+      <ToolButton
+        label="Draw"
+        icon={Pencil}
+        active={drawing}
+        onClick={() => {
+          onDraw(!drawing);
+        }}
+      />
     </div>
   );
 }

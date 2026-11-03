@@ -15,11 +15,11 @@ interface Info {
 }
 
 function Ready({ repo, board, sync }: { repo: string; board: Board; sync: BoardSync }) {
-  const { saveItem, deleteItems } = useEditor(sync.apply, sync.resync);
+  const { saveItem, deleteItems, saveStrokes } = useEditor(sync.apply, sync.resync);
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
   const context = useMemo(
-    () => ({ outputs: board.outputs, saveItem, deleteItems, editingId, setEditingId }),
-    [board.outputs, saveItem, deleteItems, editingId],
+    () => ({ outputs: board.outputs, saveItem, deleteItems, saveStrokes, editingId, setEditingId }),
+    [board.outputs, saveItem, deleteItems, saveStrokes, editingId],
   );
   return (
     <BoardContext value={context}>

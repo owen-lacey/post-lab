@@ -174,6 +174,19 @@ describe('board store', () => {
     expect(events).toHaveLength(1);
   });
 
+  it('writes saved strokes rounded, without echoing them back', async () => {
+    await store.putStrokes({
+      strokes: [{ id: 'str0k001', color: 'blue', size: 'l', points: [[1.04, 2, 0.333]] }],
+    });
+    const saved = {
+      strokes: [{ id: 'str0k001', color: 'blue', size: 'l', points: [[1, 2, 0.33]] }],
+    };
+    expect(JSON.parse(await readFile(path('strokes.json'), 'utf8'))).toEqual(saved);
+    expect(store.board().strokes).toEqual(saved);
+    await settle();
+    expect(events).toEqual([]);
+  });
+
   it('deletes an item file without echoing it back', async () => {
     expect(await store.deleteItem('c3ll0001')).toBe(true);
     expect(await store.deleteItem('c3ll0001')).toBe(false);

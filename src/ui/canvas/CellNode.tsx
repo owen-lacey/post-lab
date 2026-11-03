@@ -3,7 +3,6 @@ import { useState, type KeyboardEvent, type SyntheticEvent } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { errorMessage, postJson } from '@/lib/api';
 import type { RunResult } from '../../shared/board';
@@ -68,9 +67,7 @@ function RunFailure({ failure }: { failure: Failure }) {
       <AlertTitle>{failure.title}</AlertTitle>
       {failure.detail !== '' && (
         <AlertDescription>
-          <pre className="max-h-40 w-full overflow-auto font-mono text-xs whitespace-pre-wrap">
-            {failure.detail}
-          </pre>
+          <pre className="w-full font-mono text-xs whitespace-pre-wrap">{failure.detail}</pre>
         </AlertDescription>
       )}
     </Alert>
@@ -168,23 +165,25 @@ function CellEditor({ item }: { item: CellItem }) {
 function CellContent({ item, state }: { item: CellItem; state: RunState }) {
   const { outputs } = useBoard();
   return (
-    <ScrollArea className="nodrag nopan nowheel min-h-0 flex-1">
-      <div className="flex flex-col gap-3 p-3">
-        {item.body.trim() !== '' && <ItemText body={item.body} className="text-sm" />}
-        {state.status === 'failed' && <RunFailure failure={state.failure} />}
-        <OutputList cellId={item.id} files={outputs[item.id] ?? []} />
-      </div>
-    </ScrollArea>
+    <div className="nodrag nopan flex flex-col gap-3 p-3">
+      {item.body.trim() !== '' && <ItemText body={item.body} className="text-sm" />}
+      {state.status === 'failed' && <RunFailure failure={state.failure} />}
+      <OutputList cellId={item.id} files={outputs[item.id] ?? []} />
+    </div>
   );
 }
 
+/**
+ * A code cell. It grows to fit its outputs, so nothing in it scrolls and the wheel always pans
+ * the board; its `h` is the least height it takes (see `toFlow`).
+ */
 export function CellNode({ data: { item }, selected }: ItemNodeProps<'cell'>) {
   const { editingId } = useBoard();
   const [state, run] = useRun(item.id);
   const running = state.status === 'running';
 
   return (
-    <div className="flex size-full flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm">
+    <div className="flex size-full min-h-[inherit] flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm">
       <ItemHandles />
       <ItemResizer item={item} selected={selected} />
       <div className="flex items-center gap-2 border-b bg-muted px-3 py-2 font-mono text-sm">

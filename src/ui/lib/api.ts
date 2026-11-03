@@ -16,6 +16,10 @@ export async function getText(path: string, signal: AbortSignal): Promise<string
   return (await request(path, { signal })).text();
 }
 
+export async function post(path: string): Promise<void> {
+  await request(path, { method: 'POST' });
+}
+
 export async function postJson<T>(path: string): Promise<T> {
   return (await (await request(path, { method: 'POST' })).json()) as T;
 }

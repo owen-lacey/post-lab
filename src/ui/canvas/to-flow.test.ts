@@ -13,7 +13,7 @@ const items: Item[] = [
 ];
 
 describe('toFlow', () => {
-  const { nodes, edges } = toFlow(items);
+  const { nodes, edges } = toFlow(items, []);
 
   it('puts frames first, then orders by z and ID', () => {
     expect(nodes.map((node) => node.id)).toEqual(['frame001', 'note0002', 'note0003', 'note0001']);
@@ -30,6 +30,13 @@ describe('toFlow', () => {
       parentId: 'frame001',
     });
     expect(nodes[0]).toMatchObject({ zIndex: 5, parentId: undefined });
+  });
+
+  it('lets a cell grow to fit its outputs, at least as tall as its h', () => {
+    const cell: Item = { ...base, id: 'cell0001', type: 'cell', command: 'true' };
+    const [node] = toFlow([cell], []).nodes;
+    expect(node).toMatchObject({ width: 100, style: { minHeight: 50 } });
+    expect(node?.height).toBeUndefined();
   });
 
   it('turns connectors into edges between the items’ centre handles', () => {

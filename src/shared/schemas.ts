@@ -120,6 +120,9 @@ export const cellSchema = z.strictObject({
   type: itemType('cell'),
   ...positioned,
   ...inFrame,
+  h: z.int().positive().meta({
+    description: 'Least height in canvas pixels; the cell grows to fit its outputs.',
+  }),
   command: z.string().min(1).meta({
     description: 'Shell command that produces the outputs, e.g. `uv run analysis/churn.py`.',
   }),

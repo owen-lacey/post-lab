@@ -7,9 +7,6 @@ import {
   Square,
   type LucideIcon,
 } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { cn } from '@/lib/utils';
 import {
   ALIGNS,
   COLORS,
@@ -19,11 +16,13 @@ import {
   SHAPES,
   SIZES,
   type Align,
+  type Color,
   type ShapeKind,
 } from '../../shared/palette';
 import { useBoard } from '../board-context';
-import { COLOR_CLASSES } from '../canvas/tokens';
 import type { ItemOf, PositionedItem } from '../canvas/to-flow';
+import { ColorSwatch, TokenBar, TokenGroup } from './token-group';
+import { shared, SIZE_LABELS } from './token-values';
 
 type Colored = ItemOf<'note' | 'text' | 'shape' | 'frame'>;
 type Styled = ItemOf<'note' | 'text' | 'shape'>;
@@ -35,7 +34,6 @@ const isStyled = (item: PositionedItem): item is Styled =>
   item.type === 'note' || item.type === 'text' || item.type === 'shape';
 const isShape = (item: PositionedItem): item is ItemOf<'shape'> => item.type === 'shape';
 
-const SIZE_LABELS = { s: 'S', m: 'M', l: 'L' } as const;
 const ALIGN_ICONS: Record<Align, LucideIcon> = {
   left: AlignLeft,
   center: AlignCenter,
@@ -46,41 +44,6 @@ const SHAPE_ICONS: Record<ShapeKind, LucideIcon> = {
   ellipse: Circle,
   diamond: Diamond,
 };
-
-/** The value all items share, or '' when they differ. */
-function shared<T>(items: T[], value: (item: T) => string): string {
-  const values = new Set(items.map(value));
-  return values.size === 1 ? ([...values][0] ?? '') : '';
-}
-
-interface TokenGroupProps {
-  label: string;
-  value: string;
-  options: readonly string[];
-  render: (option: string) => React.ReactNode;
-  onChange: (value: string) => void;
-}
-
-function TokenGroup({ label, value, options, render, onChange }: TokenGroupProps) {
-  return (
-    <ToggleGroup
-      type="single"
-      size="sm"
-      aria-label={label}
-      value={value}
-      onValueChange={(next) => {
-        // Clicking the active option deselects it; tokens always have a value, so ignore that.
-        if (next !== '') onChange(next);
-      }}
-    >
-      {options.map((option) => (
-        <ToggleGroupItem key={option} value={option} aria-label={`${label} ${option}`}>
-          {render(option)}
-        </ToggleGroupItem>
-      ))}
-    </ToggleGroup>
-  );
-}
 
 /** Style tokens (R6a) for the selected items; a control shows when every item has that token. */
 export function StylePicker({ items }: { items: PositionedItem[] }) {
@@ -100,15 +63,7 @@ export function StylePicker({ items }: { items: PositionedItem[] }) {
         label="Colour"
         value={shared(colored, (item) => item.color ?? DEFAULT_COLOR[item.type])}
         options={COLORS}
-        render={(color) => (
-          <span
-            className={cn(
-              'size-4 rounded-full border-2',
-              COLOR_CLASSES[color as (typeof COLORS)[number]].fill,
-              COLOR_CLASSES[color as (typeof COLORS)[number]].border,
-            )}
-          />
-        )}
+        render={(color) => <ColorSwatch color={color as Color} />}
         onChange={(value) => {
           apply('color', value);
         }}
@@ -159,20 +114,5 @@ export function StylePicker({ items }: { items: PositionedItem[] }) {
   ].filter((group) => group !== false);
 
   if (groups.length === 0) return null;
-  return (
-    <div className="flex items-center gap-2 rounded-lg border bg-background p-1 shadow-sm">
-      {groups.flatMap((group, index) =>
-        index === 0
-          ? [group]
-          : [
-              <Separator
-                key={`separator-${String(index)}`}
-                orientation="vertical"
-                className="h-5"
-              />,
-              group,
-            ],
-      )}
-    </div>
-  );
+  return <TokenBar groups={groups} />;
 }

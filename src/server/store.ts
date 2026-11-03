@@ -5,7 +5,8 @@ import { watch, type FSWatcher } from 'chokidar';
 import writeFileAtomic from 'write-file-atomic';
 import { BOARD_DIR, type Board, type BoardEvent } from '../shared/board';
 import { decodeItem, serializeItemFile } from '../shared/item-file';
-import type { Item, ItemFrontmatter } from '../shared/schemas';
+import { strokesSchema, type Item, type ItemFrontmatter, type Strokes } from '../shared/schemas';
+import { serializeStrokes } from '../shared/strokes-file';
 import { loadBoard } from './board';
 import { diffBoards } from './board-diff';
 import { isMissing } from './fs-utils';
@@ -38,6 +39,8 @@ export interface BoardStore {
   amendItem: (id: string, amend: (item: Item) => Item | undefined) => Promise<void>;
   /** Deletes an item file; false when there was no such file. */
   deleteItem: (id: string) => Promise<boolean>;
+  /** Writes `strokes.json`. The UI already shows the strokes, so no event echoes them back. */
+  putStrokes: (strokes: Strokes) => Promise<void>;
   close: () => Promise<void>;
 }
 
@@ -183,6 +186,13 @@ export async function openBoardStore(hostRoot: string): Promise<BoardStore> {
           if (isMissing(error)) return false;
           throw error;
         }
+      }),
+    putStrokes: (strokes) =>
+      exclusive(async () => {
+        const text = serializeStrokes(strokes);
+        // In the form a re-read produces (rounded), so the watcher finds nothing to echo.
+        snapshot = { ...snapshot, strokes: strokesSchema.parse(JSON.parse(text)) };
+        await writeFileAtomic(join(boardDir, 'strokes.json'), text);
       }),
     close: async () => {
       clearTimeout(timer);

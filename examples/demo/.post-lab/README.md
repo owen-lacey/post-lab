@@ -180,7 +180,7 @@ Body: A note about the link. May be empty.
 | `x` | integer | yes | Left edge in canvas pixels (relative to the frame when `frame` is set). |
 | `y` | integer | yes | Top edge in canvas pixels (relative to the frame when `frame` is set). |
 | `w` | positive integer | yes | Width in canvas pixels. |
-| `h` | positive integer | yes | Height in canvas pixels. |
+| `h` | positive integer | yes | Least height in canvas pixels; the cell grows to fit its outputs. |
 | `z` | integer | no | Draw order; higher draws on top. Default 0, ties broken by ID. |
 | `frame` | item ID | no | ID of the frame this item sits in. Positions are then relative to the frame. |
 | `command` | string | yes | Shell command that produces the outputs, e.g. `uv run analysis/churn.py`. |

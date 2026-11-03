@@ -1,8 +1,15 @@
-import type { ConnectorEdge, ItemNode } from './to-flow';
+import type { Item } from '../../shared/schemas';
+import type { Stroke } from '../../shared/strokes-file';
+import type { CanvasNode, ConnectorEdge } from './to-flow';
 
-/** Keeps what the user is doing to a node (selecting, dragging, resizing) when its item changes. */
-function keepLocalState(node: ItemNode, prev: ItemNode): ItemNode {
-  if (prev.data.item === node.data.item) return prev;
+/** The item or stroke a node shows. */
+function sourceOf(node: CanvasNode): Item | Stroke {
+  return node.type === 'stroke' ? node.data.stroke : node.data.item;
+}
+
+/** Keeps what the user is doing to a node (selecting, dragging, resizing) when its source changes. */
+function keepLocalState(node: CanvasNode, prev: CanvasNode): CanvasNode {
+  if (sourceOf(prev) === sourceOf(node)) return prev;
   if (prev.dragging === true || prev.resizing === true) {
     return {
       ...node,
@@ -17,15 +24,20 @@ function keepLocalState(node: ItemNode, prev: ItemNode): ItemNode {
   return { ...node, selected: prev.selected };
 }
 
-function withSelected(node: ItemNode, selected: boolean): ItemNode {
+function withSelected(node: CanvasNode, selected: boolean): CanvasNode {
   return node.selected === selected ? node : { ...node, selected };
 }
 
 /**
- * Nodes for the latest items, merged with the nodes on screen: unchanged items keep their node
- * as it is. With `select`, that node becomes the only selected one (a newly created item).
+ * Nodes for the latest items and strokes, merged with the nodes on screen: unchanged ones keep
+ * their node as it is. With `select`, that node becomes the only selected one (a newly created
+ * item).
  */
-export function mergeNodes(next: ItemNode[], current: ItemNode[], select?: string): ItemNode[] {
+export function mergeNodes(
+  next: CanvasNode[],
+  current: CanvasNode[],
+  select?: string,
+): CanvasNode[] {
   const byId = new Map(current.map((node) => [node.id, node]));
   return next.map((node) => {
     const prev = byId.get(node.id);

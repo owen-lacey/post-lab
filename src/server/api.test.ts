@@ -1,8 +1,11 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { openInEditor } from './editor';
 import { startServer, type RunningServer } from './start';
 import { freePort, makeHost, openEvents, send } from './test-helpers';
+
+vi.mock('./editor', () => ({ openInEditor: vi.fn() }));
 
 const CSP = 'sandbox allow-scripts';
 
@@ -123,6 +126,76 @@ describe('board API', () => {
       expect((await del()).status).toBe(204);
       await expect(readFile(itemPath('n0te0001'))).rejects.toThrow();
       expect((await del()).status).toBe(404);
+    });
+  });
+
+  describe('saving strokes', () => {
+    const strokesPath = () => join(hostRoot, '.post-lab/strokes.json');
+    const put = (body: string) =>
+      send(port, '/api/strokes', {
+        method: 'PUT',
+        headers: { origin: `http://127.0.0.1:${String(port)}` },
+        body,
+      });
+    const strokes = {
+      strokes: [{ id: 'str0k001', color: 'red', size: 'm', points: [[0, 0, 0.5]] }],
+    };
+
+    it('writes strokes.json and serves it back', async () => {
+      expect((await put(JSON.stringify(strokes))).status).toBe(204);
+      expect(JSON.parse(await readFile(strokesPath(), 'utf8'))).toEqual(strokes);
+      const board = JSON.parse((await send(port, '/api/board')).body) as { strokes: unknown };
+      expect(board.strokes).toEqual(strokes);
+    });
+
+    it('rejects invalid strokes', async () => {
+      expect((await put('{')).status).toBe(400);
+      const bad = await put(JSON.stringify({ strokes: [{ id: 'str0k001', color: 'teal' }] }));
+      expect(bad.status).toBe(400);
+      expect(bad.body).toContain('color');
+      await expect(readFile(strokesPath())).rejects.toThrow();
+    });
+  });
+
+  describe('opening outputs in the editor', () => {
+    const open = (path: string) =>
+      send(port, path, { method: 'POST', headers: { origin: `http://127.0.0.1:${String(port)}` } });
+
+    beforeEach(async () => {
+      await writeFile(
+        join(hostRoot, '.post-lab/items/aaaa0003.md'),
+        '---\ntype: cell\nx: 0\ny: 0\nw: 300\nh: 200\ncommand: "true"\n---\n',
+      );
+      await vi.waitFor(async () => {
+        const board = JSON.parse((await send(port, '/api/board')).body) as {
+          outputs: Record<string, unknown>;
+        };
+        expect(board.outputs).toHaveProperty('aaaa0003');
+      });
+      vi.mocked(openInEditor).mockReset();
+    });
+
+    it('opens a listed output file', async () => {
+      expect((await open('/api/cells/aaaa0003/outputs/chart.html/open')).status).toBe(204);
+      expect(openInEditor).toHaveBeenCalledWith(
+        join(hostRoot, '.post-lab/outputs/aaaa0003/chart.html'),
+      );
+    });
+
+    it('says why when no editor can be found', async () => {
+      vi.mocked(openInEditor).mockReturnValue('No editor found.');
+      const reply = await open('/api/cells/aaaa0003/outputs/chart.html/open');
+      expect([reply.status, reply.body]).toEqual([500, 'No editor found.']);
+    });
+
+    it('opens nothing but listed outputs', async () => {
+      const paths = [
+        '/api/cells/aaaa0003/outputs/missing.txt/open',
+        '/api/cells/aaaa0003/outputs/..%2F..%2Fitems%2Faaaa0001.md/open',
+        '/api/cells/aaaa0001/outputs/chart.html/open',
+      ];
+      for (const path of paths) expect((await open(path)).status).toBe(404);
+      expect(openInEditor).not.toHaveBeenCalled();
     });
   });
 

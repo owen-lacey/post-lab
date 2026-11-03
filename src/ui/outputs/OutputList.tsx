@@ -1,6 +1,8 @@
-import { ExternalLink } from 'lucide-react';
+import { FileCode } from 'lucide-react';
 import { lazy, Suspense } from 'react';
-import { outputFolderUrl, outputUrl } from '@/lib/files';
+import { toast } from 'sonner';
+import { errorMessage, post } from '@/lib/api';
+import { openOutputUrl, outputFolderUrl, outputUrl } from '@/lib/files';
 import type { OutputFile } from '../../shared/board';
 import { rendererFor } from './renderer-for';
 import { WithText } from './WithText';
@@ -50,21 +52,33 @@ function OutputBody({ cellId, file }: { cellId: string; file: OutputFile }) {
   }
 }
 
+/** The file's name; clicking it opens the file in the user's editor. */
+function OpenInEditor({ cellId, file }: { cellId: string; file: OutputFile }) {
+  const open = () => {
+    post(openOutputUrl(cellId, file)).catch((error: unknown) => {
+      toast.error(`Could not open ${file.name}`, { description: errorMessage(error) });
+    });
+  };
+  return (
+    <button
+      type="button"
+      title="Open in editor"
+      onClick={open}
+      className="nodrag flex cursor-pointer items-center gap-1 self-start font-mono text-xs text-muted-foreground underline-offset-4 hover:underline"
+    >
+      {file.name}
+      <FileCode className="size-3" />
+    </button>
+  );
+}
+
 /** Every file a cell wrote, sorted by name, each rendered by its extension (D12). */
 export function OutputList({ cellId, files }: { cellId: string; files: OutputFile[] }) {
   return (
     <div className="flex flex-col gap-4">
       {files.map((file) => (
         <section key={file.name} className="flex flex-col gap-1.5">
-          <a
-            href={outputUrl(cellId, file)}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1 self-start font-mono text-xs text-muted-foreground underline-offset-4 hover:underline"
-          >
-            {file.name}
-            <ExternalLink className="size-3" />
-          </a>
+          <OpenInEditor cellId={cellId} file={file} />
           <Suspense fallback={<p className="text-xs text-muted-foreground">Loading…</p>}>
             <OutputBody cellId={cellId} file={file} />
           </Suspense>
