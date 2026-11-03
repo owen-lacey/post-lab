@@ -1,6 +1,7 @@
-import { unlink } from 'node:fs/promises';
+import { unlink, writeFile } from 'node:fs/promises';
 import { join, sep } from 'node:path';
-import { watch } from 'chokidar';
+import { setTimeout as delay } from 'node:timers/promises';
+import { watch, type FSWatcher } from 'chokidar';
 import writeFileAtomic from 'write-file-atomic';
 import { BOARD_DIR, type Board, type BoardEvent } from '../shared/board';
 import { decodeItem, serializeItemFile } from '../shared/item-file';
@@ -11,6 +12,12 @@ import { isMissing } from './fs-utils';
 
 /** How long the watcher waits for a burst of file events to settle before re-reading the board. */
 const FLUSH_DELAY_MS = 50;
+
+/** How long to wait for the watcher to report the check file before writing it again. */
+const WATCH_CHECK_RETRY_MS = 100;
+
+/** Written and removed once at start-up to confirm the watcher is live; never part of the board. */
+const WATCH_CHECK_FILE = '.watch-check';
 
 export type BoardListener = (event: BoardEvent) => void;
 
@@ -57,14 +64,37 @@ function createQueue() {
 }
 
 /**
- * Loads the board and watches `.post-lab/`. After any file event the whole board is re-read
- * from disk (the event type is not trusted) and the differences are sent to subscribers.
- * Saves update the in-memory board before writing, so the watcher finds nothing to echo.
+ * Resolves once the watcher reports a change to `checkFile`, then removes the file. macOS
+ * FSEvents starts its stream asynchronously and drops changes made before it is live, even after
+ * chokidar's `ready`, so the file is rewritten until the watcher sees it.
+ */
+async function confirmWatching(watcher: FSWatcher, checkFile: string): Promise<void> {
+  const reported = new Promise<true>((resolve) => {
+    const onEvent = (_event: string, path: string) => {
+      if (path !== checkFile) return;
+      watcher.off('all', onEvent);
+      resolve(true);
+    };
+    watcher.on('all', onEvent);
+  });
+  for (let attempt = 1; ; attempt++) {
+    await writeFile(checkFile, `${String(attempt)}\n`);
+    if (await Promise.race([reported, delay(WATCH_CHECK_RETRY_MS, false)])) break;
+  }
+  await unlink(checkFile);
+}
+
+/**
+ * Loads the board and watches `.post-lab/`, resolving once every later change will be seen.
+ * After any file event the whole board is re-read from disk (the event type is not trusted) and
+ * the differences are sent to subscribers. Saves update the in-memory board before writing, so
+ * the watcher finds nothing to echo.
  */
 export async function openBoardStore(hostRoot: string): Promise<BoardStore> {
   const boardDir = join(hostRoot, BOARD_DIR);
   const assetsDir = join(boardDir, 'assets');
   const guide = join(boardDir, 'README.md');
+  const checkFile = join(boardDir, WATCH_CHECK_FILE);
   const listeners = new Set<BoardListener>();
   const exclusive = createQueue();
   let timer: NodeJS.Timeout | undefined;
@@ -74,7 +104,8 @@ export async function openBoardStore(hostRoot: string): Promise<BoardStore> {
     ignored: (path) => path === guide || path === assetsDir || path.startsWith(assetsDir + sep),
   });
   await new Promise<void>((resolve) => watcher.once('ready', resolve));
-  let snapshot = await loadBoard(hostRoot);
+  await confirmWatching(watcher, checkFile);
+  let snapshot: Board;
 
   async function flush(): Promise<void> {
     const next = await loadBoard(hostRoot);
@@ -92,10 +123,14 @@ export async function openBoardStore(hostRoot: string): Promise<BoardStore> {
     }, FLUSH_DELAY_MS);
   }
 
-  watcher.on('all', scheduleFlush);
+  watcher.on('all', (_event, path) => {
+    if (path !== checkFile) scheduleFlush();
+  });
   watcher.on('error', (error) => {
     console.error('post-lab: file watcher failed:', error);
   });
+  // Queued, so changes seen while it reads are re-read after it.
+  snapshot = await exclusive(() => loadBoard(hostRoot));
 
   const itemFile = (id: string) => join(boardDir, 'items', `${id}.md`);
 

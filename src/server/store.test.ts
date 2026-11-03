@@ -155,3 +155,24 @@ describe('board store', () => {
     expect(events).toEqual([]);
   });
 });
+
+describe('board store start-up', () => {
+  const TEXT = '---\ntype: text\nx: 1\ny: 2\nw: 3\nh: 4\n---\n';
+
+  // macOS FSEvents drops changes made just after a watch starts; the store must not.
+  it('sees a file written as soon as it opens', async () => {
+    for (let run = 0; run < 20; run++) {
+      const hostRoot = await makeHost({ '.post-lab/items/aaaa0001.md': TEXT });
+      const store = await openBoardStore(hostRoot);
+      try {
+        await writeFile(join(hostRoot, '.post-lab/items/aaaa0002.md'), TEXT);
+        await vi.waitFor(() => {
+          expect(store.board().items).toHaveLength(2);
+        }, 1000);
+        await expect(readFile(join(hostRoot, '.post-lab/.watch-check'))).rejects.toThrow();
+      } finally {
+        await store.close();
+      }
+    }
+  }, 30_000);
+});
