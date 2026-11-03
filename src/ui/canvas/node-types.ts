@@ -1,5 +1,6 @@
 import type { NodeTypes } from '@xyflow/react';
-import { CellNode, FrameNode, ImageNode, LinkNode, NoteNode, ShapeNode, TextNode } from './nodes';
+import { CellNode } from './CellNode';
+import { FrameNode, ImageNode, LinkNode, NoteNode, ShapeNode, TextNode } from './nodes';
 import type { PositionedItem } from './to-flow';
 
 /** One React Flow node type per positioned item type. Defined once, outside render. */

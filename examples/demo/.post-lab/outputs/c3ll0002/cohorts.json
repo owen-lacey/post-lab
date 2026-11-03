@@ -1,0 +1,86 @@
+[
+  {
+    "month": "2026-01",
+    "free": 326,
+    "pro": 40,
+    "total": 366,
+    "pro_share": 0.109
+  },
+  {
+    "month": "2026-02",
+    "free": 360,
+    "pro": 62,
+    "total": 422,
+    "pro_share": 0.147
+  },
+  {
+    "month": "2026-03",
+    "free": 341,
+    "pro": 50,
+    "total": 391,
+    "pro_share": 0.128
+  },
+  {
+    "month": "2026-04",
+    "free": 428,
+    "pro": 57,
+    "total": 485,
+    "pro_share": 0.118
+  },
+  {
+    "month": "2026-05",
+    "free": 431,
+    "pro": 78,
+    "total": 509,
+    "pro_share": 0.153
+  },
+  {
+    "month": "2026-06",
+    "free": 417,
+    "pro": 82,
+    "total": 499,
+    "pro_share": 0.164
+  },
+  {
+    "month": "2026-07",
+    "free": 462,
+    "pro": 73,
+    "total": 535,
+    "pro_share": 0.136
+  },
+  {
+    "month": "2026-08",
+    "free": 471,
+    "pro": 91,
+    "total": 562,
+    "pro_share": 0.162
+  },
+  {
+    "month": "2026-09",
+    "free": 538,
+    "pro": 86,
+    "total": 624,
+    "pro_share": 0.138
+  },
+  {
+    "month": "2026-10",
+    "free": 540,
+    "pro": 92,
+    "total": 632,
+    "pro_share": 0.146
+  },
+  {
+    "month": "2026-11",
+    "free": 605,
+    "pro": 109,
+    "total": 714,
+    "pro_share": 0.153
+  },
+  {
+    "month": "2026-12",
+    "free": 567,
+    "pro": 120,
+    "total": 687,
+    "pro_share": 0.175
+  }
+]

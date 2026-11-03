@@ -1,8 +1,9 @@
 import { CircleAlert } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { getJson } from '@/lib/api';
+import { errorMessage, getJson } from '@/lib/api';
 import type { Board } from '../shared/board';
+import { BoardContext } from './board-context';
 import { BoardView } from './BoardView';
 
 interface Info {
@@ -14,12 +15,29 @@ type State =
   | { status: 'ready'; info: Info; board: Board }
   | { status: 'error'; message: string };
 
-function Body({ state }: { state: State }) {
+function Ready({
+  info,
+  board,
+  refresh,
+}: {
+  info: Info;
+  board: Board;
+  refresh: () => Promise<void>;
+}) {
+  const context = useMemo(() => ({ outputs: board.outputs, refresh }), [board.outputs, refresh]);
+  return (
+    <BoardContext value={context}>
+      <BoardView repo={info.repo} board={board} />
+    </BoardContext>
+  );
+}
+
+function Body({ state, refresh }: { state: State; refresh: () => Promise<void> }) {
   switch (state.status) {
     case 'loading':
       return null;
     case 'ready':
-      return <BoardView repo={state.info.repo} board={state.board} />;
+      return <Ready info={state.info} board={state.board} refresh={refresh} />;
     case 'error':
       return (
         <div className="p-6">
@@ -42,17 +60,19 @@ export function App() {
         setState({ status: 'ready', info, board });
       },
       (error: unknown) => {
-        setState({
-          status: 'error',
-          message: error instanceof Error ? error.message : String(error),
-        });
+        setState({ status: 'error', message: errorMessage(error) });
       },
     );
   }, []);
 
+  const refresh = useCallback(async () => {
+    const board = await getJson<Board>('/api/board');
+    setState((current) => (current.status === 'ready' ? { ...current, board } : current));
+  }, []);
+
   return (
     <main className="h-svh bg-background text-foreground">
-      <Body state={state} />
+      <Body state={state} refresh={refresh} />
     </main>
   );
 }

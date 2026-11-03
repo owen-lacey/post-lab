@@ -1,4 +1,4 @@
-import type { Edge, Node } from '@xyflow/react';
+import type { Edge, Node, NodeProps } from '@xyflow/react';
 import type { Item } from '../../shared/schemas';
 
 export type PositionedItem = Exclude<Item, { type: 'connector' }>;
@@ -8,6 +8,10 @@ export type ItemOf<T extends PositionedItem['type']> = Extract<PositionedItem, {
 export type ItemNode = {
   [T in PositionedItem['type']]: Node<{ item: ItemOf<T> }, T>;
 }[PositionedItem['type']];
+
+export type ItemNodeProps<T extends PositionedItem['type']> = NodeProps<
+  Extract<ItemNode, { type: T }>
+>;
 
 function isConnector(item: Item): item is ConnectorItem {
   return item.type === 'connector';

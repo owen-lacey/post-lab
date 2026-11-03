@@ -39,6 +39,7 @@ describe('loadBoard', () => {
       items: [],
       strokes: { strokes: [] },
       problems: [],
+      outputs: {},
     });
   });
 

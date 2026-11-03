@@ -13,6 +13,21 @@ export default defineConfig({
   build: {
     outDir: '../../dist/ui',
     emptyOutDir: true,
+    rolldownOptions: {
+      output: {
+        // vega-embed pulls in all of Vega, Vega-Lite and d3, which load only when a chart output
+        // is shown. maxSize splits them into chunks under Vite's 500 kB size warning.
+        codeSplitting: {
+          groups: [
+            {
+              name: 'charts',
+              test: /node_modules[\\/](vega(-[^\\/]+)?|d3-[^\\/]+)[\\/]/,
+              maxSize: 450_000,
+            },
+          ],
+        },
+      },
+    },
   },
   server: {
     host: '127.0.0.1',

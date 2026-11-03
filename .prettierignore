@@ -1,3 +1,4 @@
 dist/
 pnpm-lock.yaml
 *.md
+examples/demo/.post-lab/outputs/

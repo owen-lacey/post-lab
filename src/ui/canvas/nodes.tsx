@@ -1,36 +1,10 @@
-import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { Link2, SquareTerminal } from 'lucide-react';
+import { Link2 } from 'lucide-react';
+import { fileUrl } from '@/lib/files';
 import { cn } from '@/lib/utils';
 import { DEFAULT_ALIGN, DEFAULT_COLOR, DEFAULT_SIZE } from '../../shared/palette';
-import type { ItemNode, ItemOf, PositionedItem } from './to-flow';
+import { CentreHandles, ItemText } from './node-parts';
+import type { ItemNodeProps, ItemOf } from './to-flow';
 import { ALIGN_CLASSES, COLOR_CLASSES, SIZE_CLASSES } from './tokens';
-
-type ItemNodeProps<T extends PositionedItem['type']> = NodeProps<Extract<ItemNode, { type: T }>>;
-
-/** Hidden handles at the centre, so connectors run centre to centre. */
-function CentreHandles() {
-  return (
-    <>
-      <Handle
-        type="target"
-        position={Position.Top}
-        isConnectable={false}
-        className="top-1/2! opacity-0"
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        isConnectable={false}
-        className="top-1/2! bottom-auto! opacity-0"
-      />
-    </>
-  );
-}
-
-/** Item text exactly as typed: markdown is not rendered (D3). */
-function ItemText({ body, className }: { body: string; className?: string }) {
-  return <p className={cn('wrap-break-word whitespace-pre-wrap', className)}>{body}</p>;
-}
 
 export function NoteNode({ data: { item } }: ItemNodeProps<'note'>) {
   const color = COLOR_CLASSES[item.color ?? DEFAULT_COLOR.note];
@@ -117,11 +91,6 @@ export function FrameNode({ data: { item } }: ItemNodeProps<'frame'>) {
   );
 }
 
-/** Asset URL for an image `src` (always inside `assets/`), one encoded segment at a time. */
-function fileUrl(src: string): string {
-  return `/api/files/${src.split('/').map(encodeURIComponent).join('/')}`;
-}
-
 export function ImageNode({ data: { item } }: ItemNodeProps<'image'>) {
   const caption = item.body.trim();
   return (
@@ -156,27 +125,11 @@ export function LinkNode({ data: { item } }: ItemNodeProps<'link'>) {
         href={item.url}
         target="_blank"
         rel="noreferrer"
-        className="truncate text-xs text-primary underline-offset-4 hover:underline"
+        className="pointer-events-auto truncate text-xs text-primary underline-offset-4 hover:underline"
       >
         {item.url}
       </a>
       <ItemText body={item.body} className="text-sm" />
-    </div>
-  );
-}
-
-export function CellNode({ data: { item } }: ItemNodeProps<'cell'>) {
-  return (
-    <div className="flex size-full flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm">
-      <CentreHandles />
-      <div className="flex items-center gap-2 border-b bg-muted px-3 py-2 font-mono text-sm">
-        <SquareTerminal className="size-4 shrink-0 text-muted-foreground" />
-        <code className="truncate">{item.command}</code>
-        {item.cwd !== undefined && (
-          <span className="ml-auto shrink-0 text-xs text-muted-foreground">in {item.cwd}</span>
-        )}
-      </div>
-      <ItemText body={item.body} className="p-3 text-sm" />
     </div>
   );
 }

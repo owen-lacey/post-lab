@@ -28,6 +28,15 @@ export default defineConfig(
     ...tseslint.configs.disableTypeChecked,
   },
   {
+    // Scripts in the demo host repo are plain JavaScript, outside the TypeScript project.
+    files: ['examples/**/*.mjs'],
+    ...tseslint.configs.disableTypeChecked,
+    languageOptions: {
+      ...tseslint.configs.disableTypeChecked.languageOptions,
+      globals: globals.node,
+    },
+  },
+  {
     files: ['src/cli.ts', 'src/dev.ts', 'src/server/**', 'src/shared/**', '*.config.ts'],
     languageOptions: { globals: globals.node },
   },

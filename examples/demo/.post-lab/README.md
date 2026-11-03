@@ -54,6 +54,25 @@ to: c3ll0001
 shows
 ```
 
+## Cells and outputs
+
+- A `cell` item runs `command` through the shell, in `cwd` (relative to the repo root; default the repo root). It runs only when someone clicks Run in post-lab, never because its file changed.
+- Each run first empties `outputs/<cell id>/`, then sets the environment variable `POST_LAB_OUT` to that folder's absolute path. Scripts write their results there, e.g. `fig.write_html(os.environ["POST_LAB_OUT"] + "/churn.html")`.
+- Whatever the command prints to stdout is saved there as `stdout.txt`. stderr and a non-zero exit code are shown in post-lab but not saved.
+- Outputs are committed with the repo, so the board shows them without running anything.
+- Every file in the folder is shown, sorted by name. Its extension decides how:
+
+| File | Shown as |
+|---|---|
+| `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.svg` | image |
+| `.csv` | table, first line as the header |
+| `.json` | table; must be an array of objects |
+| `.vl.json` | Vega-Lite chart; a relative `data.url` is read from the same folder |
+| `.html` | interactive page (e.g. Plotly) in a sandboxed frame |
+| `.md` | rendered markdown (GitHub flavoured); relative links point into the same folder |
+| `stdout.txt` | text |
+| anything else | a link to the file |
+
 ## Field reference
 
 ### `note`

@@ -4,22 +4,14 @@ import { z } from 'zod';
 import { BOARD_DIR, type Board, type Problem } from '../shared/board';
 import { decodeItem } from '../shared/item-file';
 import { ID_PATTERN, strokesSchema, type Item, type Strokes } from '../shared/schemas';
+import { compare, isMissing } from './fs-utils';
+import { listOutputs } from './outputs';
 
 const ITEM_FILE_NAME = /^([0-9a-z]{8})\.md$/;
 
 interface Loaded<T> {
   value: T;
   problems: Problem[];
-}
-
-function isMissing(error: unknown): boolean {
-  return error instanceof Error && 'code' in error && error.code === 'ENOENT';
-}
-
-/** Code-point order, so listings are the same on every machine and locale. */
-function compare(a: string, b: string): number {
-  if (a === b) return 0;
-  return a < b ? -1 : 1;
 }
 
 function itemPath(name: string): string {
@@ -131,5 +123,7 @@ export async function loadBoard(hostRoot: string): Promise<Board> {
   const strokes = await readStrokes(boardDir);
   const problems = [...read.problems, ...checked.problems, ...strokes.problems];
   problems.sort((a, b) => compare(a.path, b.path));
-  return { items: checked.value, strokes: strokes.value, problems };
+  const cellIds = checked.value.filter((item) => item.type === 'cell').map((item) => item.id);
+  const outputs = await listOutputs(boardDir, cellIds);
+  return { items: checked.value, strokes: strokes.value, problems, outputs };
 }
