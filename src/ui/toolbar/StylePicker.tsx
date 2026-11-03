@@ -47,13 +47,13 @@ const SHAPE_ICONS: Record<ShapeKind, LucideIcon> = {
 
 /** Style tokens (R6a) for the selected items; a control shows when every item has that token. */
 export function StylePicker({ items }: { items: PositionedItem[] }) {
-  const { saveItem } = useBoard();
+  const { edit } = useBoard();
   const colored = items.every(isColored) ? items : [];
   const styled = items.every(isStyled) ? items : [];
   const shapes = items.every(isShape) ? items : [];
 
   const apply = (token: Token, value: string) => {
-    for (const item of items) saveItem({ ...item, [token]: value });
+    edit({ saved: items.map((item) => ({ ...item, [token]: value })) });
   };
 
   const groups = [

@@ -20,7 +20,7 @@ interface SelectionPickerProps {
  * selected items. A selection mixing strokes and items has no tokens in common, so shows none.
  */
 export function SelectionPicker({ nodes, strokes, pen, onPenChange }: SelectionPickerProps) {
-  const { saveStrokes } = useBoard();
+  const { edit } = useBoard();
   if (pen !== undefined) {
     return (
       <InkPicker
@@ -43,7 +43,7 @@ export function SelectionPicker({ nodes, strokes, pen, onPenChange }: SelectionP
       color={shared(selectedStrokes, (stroke) => stroke.color)}
       size={shared(selectedStrokes, (stroke) => stroke.size)}
       onChange={(token) => {
-        saveStrokes(restyleStrokes(strokes, ids, token));
+        edit({ strokes: restyleStrokes(strokes, ids, token) });
       }}
     />
   );

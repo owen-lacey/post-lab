@@ -17,7 +17,7 @@ export function ConnectorEdge({
   data,
   markerEnd,
 }: EdgeProps<ConnectorEdgeType>) {
-  const { editingId, setEditingId, saveItem } = useBoard();
+  const { editingId, setEditingId, edit } = useBoard();
   const [path, labelX, labelY] = getStraightPath({ sourceX, sourceY, targetX, targetY });
   if (data === undefined) throw new Error(`Edge ${id} has no connector.`);
   const { connector } = data;
@@ -52,7 +52,7 @@ export function ConnectorEdge({
               setEditingId(undefined);
               if (text === undefined) return;
               const body = withFinalNewline(text);
-              if (body !== connector.body) saveItem({ ...connector, body });
+              if (body !== connector.body) edit({ saved: [{ ...connector, body }] });
             }}
           />
         </foreignObject>

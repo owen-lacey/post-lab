@@ -50,20 +50,21 @@ export function ItemHandles() {
 
 /** Resize handles on the selected item; the new box is saved when the resize ends. */
 export function ItemResizer({ item, selected }: { item: PositionedItem; selected: boolean }) {
-  const { saveItem } = useBoard();
+  const { edit } = useBoard();
   return (
     <NodeResizer
       isVisible={selected}
       minWidth={40}
       minHeight={24}
       onResizeEnd={(_, box) => {
-        saveItem({
+        const resized = {
           ...item,
           x: Math.round(box.x),
           y: Math.round(box.y),
           w: Math.round(box.width),
           h: Math.round(box.height),
-        });
+        };
+        edit({ saved: [resized] });
       }}
     />
   );
@@ -125,7 +126,7 @@ interface EditableTextProps {
 
 /** The item's body, or an editor for it while the item is being edited (double-click). */
 export function EditableText({ item, className, editorClassName, singleLine }: EditableTextProps) {
-  const { editingId, setEditingId, saveItem } = useBoard();
+  const { editingId, setEditingId, edit } = useBoard();
   if (editingId !== item.id) return <ItemText body={item.body} className={className} />;
   return (
     <TextEditor
@@ -136,7 +137,7 @@ export function EditableText({ item, className, editorClassName, singleLine }: E
         setEditingId(undefined);
         if (text === undefined) return;
         const body = withFinalNewline(text);
-        if (body !== item.body) saveItem({ ...item, body });
+        if (body !== item.body) edit({ saved: [{ ...item, body }] });
       }}
     />
   );

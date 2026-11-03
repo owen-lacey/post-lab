@@ -41,6 +41,7 @@ import { useImageDrop } from './canvas/use-image-drop';
 import { ProblemsPanel } from './ProblemsPanel';
 import { CreateToolbar, type PendingItem } from './toolbar/CreateToolbar';
 import { SelectionPicker } from './toolbar/SelectionPicker';
+import { useUndoKeys } from './use-undo-keys';
 
 const isValidConnection: IsValidConnection = (connection) =>
   connection.source !== connection.target;
@@ -107,18 +108,19 @@ function usePlacement(nodes: ItemNode[], onPlace: (item: PositionedItem) => void
 }
 
 function Canvas({ repo, board }: { repo: string; board: Board }) {
-  const { saveItem, deleteItems, saveStrokes, setEditingId } = useBoard();
+  const { edit, undo, redo, setEditingId } = useBoard();
   const { nodes, edges, onNodesChange, onEdgesChange, selectOnCreate } = useFlowState(board);
   const itemNodes = nodes.filter(isItemNode);
   const drawTool = useDrawing();
+  useUndoKeys(undo, redo);
 
-  /** Saves where each dragged item landed, moving it into or out of a frame. */
-  const saveDraggedItems = (dragged: ItemNode[]) => {
+  /** Where each dragged item landed, moved into or out of a frame; unmoved items are left out. */
+  const placeDraggedItems = (dragged: ItemNode[]): PositionedItem[] => {
     const moved = new Map(dragged.map((node) => [node.id, node]));
     const current = itemNodes.map((node) => moved.get(node.id) ?? node);
     const positions = new Map<string, XYPosition>(current.map((node) => [node.id, node.position]));
     const frames = frameBoxes(current);
-    for (const node of dragged) {
+    return dragged.flatMap((node) => {
       const item = node.data.item;
       const parent = node.parentId === undefined ? undefined : positions.get(node.parentId);
       const box = {
@@ -128,37 +130,43 @@ function Canvas({ repo, board }: { repo: string; board: Board }) {
         h: item.h,
       };
       const placed = placeDropped(item, box, frames);
-      if (placementChanged(item, placed)) saveItem(placed);
-    }
+      return placementChanged(item, placed) ? [placed] : [];
+    });
   };
 
+  /** A drag of items and strokes together is one edit. */
   const onNodeDragStop: OnNodeDrag<CanvasNode> = (_event, _node, dragged) => {
-    saveDraggedItems(dragged.filter(isItemNode));
     const landed = new Map(dragged.filter(isStrokeNode).map((node) => [node.id, node.position]));
-    if (landed.size > 0) saveStrokes(moveStrokes(board.strokes, landed));
+    edit({
+      saved: placeDraggedItems(dragged.filter(isItemNode)),
+      strokes: landed.size > 0 ? moveStrokes(board.strokes, landed) : undefined,
+    });
   };
 
+  /** React Flow hands over a deleted frame's children and every connector to what went. */
   const onDelete: OnDelete<CanvasNode, ConnectorEdge> = (removed) => {
     const strokeIds = new Set(removed.nodes.filter(isStrokeNode).map((node) => node.id));
-    if (strokeIds.size > 0) saveStrokes(withoutStrokes(board.strokes, strokeIds));
     const items = [...removed.nodes.filter(isItemNode), ...removed.edges];
-    deleteItems(items.map((element) => element.id));
+    edit({
+      deleted: items.map((element) => element.id),
+      strokes: strokeIds.size > 0 ? withoutStrokes(board.strokes, strokeIds) : undefined,
+    });
   };
 
   const onConnect: OnConnect = (connection) => {
-    saveItem(newConnector(newItemId(), connection.source, connection.target));
+    edit({ saved: [newConnector(newItemId(), connection.source, connection.target)] });
   };
 
   /** A new item is selected; one whose text is typed on the board opens for editing. */
   const placement = usePlacement(itemNodes, (item) => {
     selectOnCreate(item.id);
-    saveItem(item);
+    edit({ saved: [item] });
     if (item.type !== 'cell' && item.type !== 'link') setEditingId(item.id);
   });
 
   const imageDrop = useImageDrop(itemNodes, (item) => {
     selectOnCreate(item.id);
-    saveItem(item);
+    edit({ saved: [item] });
   });
 
   /** Picking an item tool puts the pen down, and the pen cancels a pending item. */
@@ -172,7 +180,7 @@ function Canvas({ repo, board }: { repo: string; board: Board }) {
   };
   const addStroke = (points: StrokePoint[]) => {
     const stroke = { id: newItemId(), ...drawTool.pen, points };
-    saveStrokes({ strokes: [...board.strokes.strokes, stroke] });
+    edit({ strokes: { strokes: [...board.strokes.strokes, stroke] } });
   };
 
   return (

@@ -86,7 +86,7 @@ function RunStatus({ state }: { state: RunState }) {
 
 /** Edits the command, its folder and the description; Ctrl/Cmd+Enter saves, Escape cancels. */
 function CellEditor({ item }: { item: CellItem }) {
-  const { saveItem, setEditingId } = useBoard();
+  const { edit, setEditingId } = useBoard();
   const [command, setCommand] = useState(item.command);
   const [cwd, setCwd] = useState(item.cwd ?? '');
   const [body, setBody] = useState(item.body);
@@ -97,12 +97,13 @@ function CellEditor({ item }: { item: CellItem }) {
     if (!valid) return;
     setEditingId(undefined);
     const trimmedCwd = cwd.trim();
-    saveItem({
+    const edited = {
       ...item,
       command: command.trim(),
       cwd: trimmedCwd === '' ? undefined : trimmedCwd,
       body: withFinalNewline(body),
-    });
+    };
+    edit({ saved: [edited] });
   };
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Escape') setEditingId(undefined);

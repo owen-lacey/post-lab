@@ -1,6 +1,6 @@
 # post-lab v1 implementation plan
 
-Status: M1–M6 done; revised 2026-11-02 for D15 (one board per host repo, in `.post-lab/`). Implements `docs/requirements.md` (R1–R33, decisions D1–D15); read that first. This plan does not reopen those decisions. Where it fixes a detail they leave open (field names, API routes, milestone order), it says so under "Plan-level details".
+Status: M1–M7 done; revised 2026-11-02 for D15 (one board per host repo, in `.post-lab/`). Implements `docs/requirements.md` (R1–R33, decisions D1–D15); read that first. This plan does not reopen those decisions. Where it fixes a detail they leave open (field names, API routes, milestone order), it says so under "Plan-level details".
 
 Versions below were checked against the npm registry on 2026-10-29.
 
@@ -194,10 +194,11 @@ Accept:
 Added 2026-11-03 at the user's request (it was out of scope for v1).
 
 - Undo history in the UI, per browser tab and in memory only (R18: nothing is persisted outside the host repo). It is cleared on reload.
-- Every canvas edit goes through `saveItem`/`deleteItems` (`src/ui/use-editor.ts`), which record a step: for each item touched, its state before (absent for a created item) and after (absent for a deleted one). One user action is one step: a multi-item drag, a style change across the selection, or deleting a frame with its children and connectors.
+- Every canvas edit is one `edit({ saved, deleted, strokes })` call (`src/ui/use-editor.ts`), which records a step (`src/ui/history.ts`): for each item touched, its state before (absent for a created item) and after (absent for a deleted one), and `strokes.json` before and after if the drawing changed. One user action is one step: a multi-item drag, a style change across the selection, drawing a stroke, or deleting a frame with its children, their connectors and any selected strokes. Dropping several images makes one step per image.
+- Writes go out with frames first and connectors last (deletes the other way round), so restoring a frame and its children never names a missing item.
 - Cmd+Z undoes and Shift+Cmd+Z redoes (Ctrl on other systems). While a text editor is open, the keys go to the text box instead.
 - Undo writes each item's state before through the usual `PUT`/`DELETE`; redo writes its state after. A new edit clears the redo steps. The history keeps the last 100 steps.
-- Last write wins (D8) applies to files, not to undo: undo leaves an item alone if it has changed since the step (on disk, by an agent or in another tab), applies the rest of the step, and says in a notice which items it skipped.
+- Last write wins (D8) applies to files, not to undo: undo leaves an item alone if it has changed since the step (on disk, by an agent or in another tab), applies the rest of the step, and says in a notice which files it skipped (by path). Redo does the same. Changes are compared as the files post-lab would write, leaving out a link's `preview`, which the server writes in after a link is saved. Only the applied part of a step moves to the other stack.
 
 Accept:
 - Create, move, resize, inline text edit, style change, connect and delete each undo and redo in one step, and a file post-lab wrote returns byte for byte to its earlier content.
