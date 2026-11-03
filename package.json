@@ -16,6 +16,7 @@
   "scripts": {
     "dev": "concurrently -k -n server,ui \"tsx watch src/dev.ts\" \"vite\"",
     "build": "tsdown && vite build",
+    "prepack": "pnpm build",
     "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.ui.json",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -30,7 +31,6 @@
     "launch-editor": "2.14.2",
     "open": "^11.0.4",
     "open-graph-scraper": "^6.12.0",
-    "perfect-freehand": "1.2.3",
     "write-file-atomic": "^8.0.0",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"
@@ -60,6 +60,7 @@
     "nanoid": "^6.0.2",
     "next-themes": "^0.4.6",
     "papaparse": "^5.7.0",
+    "perfect-freehand": "1.2.3",
     "prettier": "^3.9.10",
     "radix-ui": "^1.8.1",
     "react": "^19.3.1",

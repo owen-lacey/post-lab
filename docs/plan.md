@@ -1,6 +1,6 @@
 # post-lab v1 implementation plan
 
-Status: M1–M7 done; revised 2026-11-02 for D15 (one board per host repo, in `.post-lab/`). Implements `docs/requirements.md` (R1–R33, decisions D1–D15); read that first. This plan does not reopen those decisions. Where it fixes a detail they leave open (field names, API routes, milestone order), it says so under "Plan-level details".
+Status: M1–M8 done; revised 2026-11-02 for D15 (one board per host repo, in `.post-lab/`). Implements `docs/requirements.md` (R1–R33, decisions D1–D15); read that first. This plan does not reopen those decisions. Where it fixes a detail they leave open (field names, API routes, milestone order), it says so under "Plan-level details".
 
 Versions below were checked against the npm registry on 2026-10-29.
 
@@ -209,7 +209,8 @@ Accept:
 ### M8. Packaging
 
 - `pnpm build`: Vite builds `dist/ui`, tsdown builds `dist/cli.js`; `files` limits the package to `dist`.
-- Smoke test: `pnpm pack`, then run the tarball with `npx` in a fresh temp host repo with no package.json.
+- `prepack` runs `pnpm build`, so a packed tarball always holds a fresh `dist`. Only the server's imports are `dependencies`; UI packages are devDependencies because Vite bundles them into `dist/ui`.
+- Smoke test: `pnpm pack`, then `npx --package=<path to tarball> post-lab` in a fresh temp host repo with no package.json (`npx <tarball>` tries to run the file itself).
 - Publishing to npm happens only when the user asks.
 
 Accept:
