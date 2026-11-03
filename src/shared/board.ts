@@ -35,3 +35,23 @@ export interface RunResult {
   /** The command's stderr, or why it could not be started. */
   stderr: string;
 }
+
+/** What `GET /api/events` streams; each event's SSE name is its `type`. */
+export type BoardEvent =
+  | { type: 'item'; item: Item }
+  | { type: 'item-removed'; id: string }
+  | { type: 'strokes'; strokes: Strokes }
+  | { type: 'outputs'; cellId: string; files: OutputFile[] }
+  | { type: 'problems'; problems: Problem[] };
+
+/** Every `BoardEvent` type, which is also its SSE event name. */
+export const BOARD_EVENT_TYPES = [
+  'item',
+  'item-removed',
+  'strokes',
+  'outputs',
+  'problems',
+] as const satisfies readonly BoardEvent['type'][];
+
+/** What `PUT /api/items/:id` takes: the item's frontmatter and body (its ID is in the URL). */
+export type ItemContent = Omit<Item, 'id'>;

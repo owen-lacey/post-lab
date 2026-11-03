@@ -1,7 +1,9 @@
 async function request(path: string, init?: RequestInit): Promise<Response> {
   const response = await fetch(path, init);
   if (!response.ok) {
-    throw new Error(`${path} failed with ${String(response.status)}`);
+    const detail = (await response.text()).trim();
+    const status = `${path} failed with ${String(response.status)}`;
+    throw new Error(detail === '' ? status : `${status}: ${detail}`);
   }
   return response;
 }
@@ -16,6 +18,18 @@ export async function getText(path: string, signal: AbortSignal): Promise<string
 
 export async function postJson<T>(path: string): Promise<T> {
   return (await (await request(path, { method: 'POST' })).json()) as T;
+}
+
+export async function putJson(path: string, body: unknown): Promise<void> {
+  await request(path, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteRequest(path: string): Promise<void> {
+  await request(path, { method: 'DELETE' });
 }
 
 export function errorMessage(error: unknown): string {

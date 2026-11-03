@@ -6,6 +6,8 @@
 @plugin '@tailwindcss/typography';
 
 @custom-variant dark (&:is(.dark *));
+/* React Flow's canvas surfaces, e.g. to change the cursor everywhere on the board. */
+@custom-variant flow-surfaces (& :is(.react-flow__pane, .react-flow__node));
 
 @theme inline {
   --font-heading: var(--font-sans);

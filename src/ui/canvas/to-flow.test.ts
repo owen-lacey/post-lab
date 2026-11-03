@@ -32,21 +32,25 @@ describe('toFlow', () => {
     expect(nodes[0]).toMatchObject({ zIndex: 5, parentId: undefined });
   });
 
-  it('turns connectors into straight edges labelled by their body', () => {
+  it('turns connectors into edges between the items’ centre handles', () => {
     expect(edges).toEqual([
       {
         id: 'conn0001',
         source: 'note0001',
         target: 'note0002',
-        type: 'straight',
-        label: 'leads to',
+        sourceHandle: 'centre-source',
+        targetHandle: 'centre-target',
+        type: 'connector',
+        data: { connector: items[4] },
       },
       {
         id: 'conn0002',
         source: 'note0002',
         target: 'note0003',
-        type: 'straight',
-        label: undefined,
+        sourceHandle: 'centre-source',
+        targetHandle: 'centre-target',
+        type: 'connector',
+        data: { connector: items[5] },
       },
     ]);
   });

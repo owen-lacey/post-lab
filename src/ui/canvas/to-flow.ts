@@ -13,6 +13,12 @@ export type ItemNodeProps<T extends PositionedItem['type']> = NodeProps<
   Extract<ItemNode, { type: T }>
 >;
 
+export type ConnectorEdge = Edge<{ connector: ConnectorItem }, 'connector'>;
+
+/** Hidden handles at each item's centre, so connectors run centre to centre. */
+export const CENTRE_SOURCE = 'centre-source';
+export const CENTRE_TARGET = 'centre-target';
+
 function isConnector(item: Item): item is ConnectorItem {
   return item.type === 'connector';
 }
@@ -35,23 +41,26 @@ function toNode(item: PositionedItem): ItemNode {
     height: item.h,
     zIndex: item.z ?? 0,
     parentId: item.type === 'frame' ? undefined : item.frame,
+    // Lets node parts react to hovering or selecting the node (`group-hover:`, `group-[.selected]:`).
+    className: 'group',
     data: { item },
   } as ItemNode;
 }
 
-function toEdge(connector: ConnectorItem): Edge {
-  const label = connector.body.trim();
+function toEdge(connector: ConnectorItem): ConnectorEdge {
   return {
     id: connector.id,
     source: connector.from,
     target: connector.to,
-    type: 'straight',
-    label: label === '' ? undefined : label,
+    sourceHandle: CENTRE_SOURCE,
+    targetHandle: CENTRE_TARGET,
+    type: 'connector',
+    data: { connector },
   };
 }
 
 /** Maps board items to React Flow nodes (frames as sub flows) and edges (connectors). */
-export function toFlow(items: Item[]): { nodes: ItemNode[]; edges: Edge[] } {
+export function toFlow(items: Item[]): { nodes: ItemNode[]; edges: ConnectorEdge[] } {
   const connectors = items.filter(isConnector);
   const positioned = items.filter((item): item is PositionedItem => !isConnector(item));
   return {

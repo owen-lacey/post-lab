@@ -1,10 +1,12 @@
 import { createContext, useContext } from 'react';
 import type { OutputFile } from '../shared/board';
+import type { Editor } from './use-editor';
 
-export interface BoardContextValue {
+export interface BoardContextValue extends Editor {
   outputs: Record<string, OutputFile[]>;
-  /** Reloads the board from disk (after a cell run; M4 replaces this with live sync). */
-  refresh: () => Promise<void>;
+  /** The item or connector whose text is being edited inline. */
+  editingId: string | undefined;
+  setEditingId: (id: string | undefined) => void;
 }
 
 export const BoardContext = createContext<BoardContextValue | null>(null);

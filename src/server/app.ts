@@ -1,10 +1,13 @@
 import { basename, join } from 'node:path';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
+import { streamSSE } from 'hono/streaming';
 import { BOARD_DIR } from '../shared/board';
-import { loadBoard } from './board';
+import { ID_PATTERN } from '../shared/schemas';
 import { createCellRunner, type CellItem } from './cells';
+import { parseItemRequest } from './item-request';
 import { originGuard } from './security';
+import type { BoardStore } from './store';
 
 export interface AppOptions {
   /** Root of the host repo post-lab was started in. */
@@ -17,18 +20,48 @@ export interface AppOptions {
 
 const FILES_PREFIX = '/api/files';
 
-export function createApp({ hostRoot, publicPort, uiDir }: AppOptions): Hono {
+export function createApp({ hostRoot, publicPort, uiDir }: AppOptions, store: BoardStore): Hono {
   const app = new Hono();
 
   const cells = createCellRunner(hostRoot);
 
   app.use(originGuard(publicPort));
   app.get('/api/info', (c) => c.json({ repo: basename(hostRoot) }));
-  app.get('/api/board', async (c) => c.json(await loadBoard(hostRoot)));
+  app.get('/api/board', (c) => c.json(store.board()));
+  app.get('/api/events', (c) =>
+    streamSSE(c, async (stream) => {
+      const aborted = new Promise<void>((resolve) => {
+        stream.onAbort(resolve);
+      });
+      const unsubscribe = store.subscribe((event) => {
+        void stream.writeSSE({ event: event.type, data: JSON.stringify(event) });
+      });
+      await stream.write(': connected\n\n');
+      await aborted;
+      unsubscribe();
+    }),
+  );
+  app.use('/api/items/:id', async (c, next) => {
+    if (!ID_PATTERN.test(c.req.param('id'))) {
+      return c.text(`Item IDs match ${ID_PATTERN.source}`, 400);
+    }
+    await next();
+  });
+  app.put('/api/items/:id', async (c) => {
+    const parsed = parseItemRequest(await c.req.text());
+    if (!parsed.ok) return c.text(parsed.message, 400);
+    await store.putItem(c.req.param('id'), parsed.frontmatter, parsed.body);
+    return c.body(null, 204);
+  });
+  app.delete('/api/items/:id', async (c) => {
+    if (!(await store.deleteItem(c.req.param('id')))) return c.notFound();
+    return c.body(null, 204);
+  });
   app.post('/api/cells/:id/run', async (c) => {
     const id = c.req.param('id');
-    const { items } = await loadBoard(hostRoot);
-    const cell = items.find((item): item is CellItem => item.id === id && item.type === 'cell');
+    const cell = store
+      .board()
+      .items.find((item): item is CellItem => item.id === id && item.type === 'cell');
     if (cell === undefined) return c.notFound();
     if (cells.isRunning(id)) return c.text('This cell is already running', 409);
     return c.json(await cells.run(cell));

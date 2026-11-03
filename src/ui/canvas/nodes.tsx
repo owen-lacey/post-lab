@@ -2,11 +2,11 @@ import { Link2 } from 'lucide-react';
 import { fileUrl } from '@/lib/files';
 import { cn } from '@/lib/utils';
 import { DEFAULT_ALIGN, DEFAULT_COLOR, DEFAULT_SIZE } from '../../shared/palette';
-import { CentreHandles, ItemText } from './node-parts';
+import { EditableText, ItemHandles, ItemResizer } from './node-parts';
 import type { ItemNodeProps, ItemOf } from './to-flow';
 import { ALIGN_CLASSES, COLOR_CLASSES, SIZE_CLASSES } from './tokens';
 
-export function NoteNode({ data: { item } }: ItemNodeProps<'note'>) {
+export function NoteNode({ data: { item }, selected }: ItemNodeProps<'note'>) {
   const color = COLOR_CLASSES[item.color ?? DEFAULT_COLOR.note];
   return (
     <div
@@ -18,13 +18,14 @@ export function NoteNode({ data: { item } }: ItemNodeProps<'note'>) {
         ALIGN_CLASSES[item.align ?? DEFAULT_ALIGN.note],
       )}
     >
-      <CentreHandles />
-      <ItemText body={item.body} />
+      <ItemHandles />
+      <ItemResizer item={item} selected={selected} />
+      <EditableText item={item} editorClassName="size-full resize-none" />
     </div>
   );
 }
 
-export function TextNode({ data: { item } }: ItemNodeProps<'text'>) {
+export function TextNode({ data: { item }, selected }: ItemNodeProps<'text'>) {
   return (
     <div
       className={cn(
@@ -34,8 +35,9 @@ export function TextNode({ data: { item } }: ItemNodeProps<'text'>) {
         ALIGN_CLASSES[item.align ?? DEFAULT_ALIGN.text],
       )}
     >
-      <CentreHandles />
-      <ItemText body={item.body} />
+      <ItemHandles />
+      <ItemResizer item={item} selected={selected} />
+      <EditableText item={item} editorClassName="size-full resize-none" />
     </div>
   );
 }
@@ -51,11 +53,12 @@ function ShapeOutline({ shape }: { shape: ItemOf<'shape'>['shape'] }) {
   }
 }
 
-export function ShapeNode({ data: { item } }: ItemNodeProps<'shape'>) {
+export function ShapeNode({ data: { item }, selected }: ItemNodeProps<'shape'>) {
   const color = COLOR_CLASSES[item.color ?? DEFAULT_COLOR.shape];
   return (
     <div className="relative size-full text-foreground">
-      <CentreHandles />
+      <ItemHandles />
+      <ItemResizer item={item} selected={selected} />
       <svg
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
@@ -71,49 +74,54 @@ export function ShapeNode({ data: { item } }: ItemNodeProps<'shape'>) {
           ALIGN_CLASSES[item.align ?? DEFAULT_ALIGN.shape],
         )}
       >
-        <ItemText body={item.body} />
+        <EditableText item={item} editorClassName="size-full resize-none" />
       </div>
     </div>
   );
 }
 
-export function FrameNode({ data: { item } }: ItemNodeProps<'frame'>) {
+export function FrameNode({ data: { item }, selected }: ItemNodeProps<'frame'>) {
   const color = COLOR_CLASSES[item.color ?? DEFAULT_COLOR.frame];
   return (
     <div className={cn('relative size-full rounded-lg border-2', color.fill, color.border)}>
-      <CentreHandles />
-      <p
-        className={cn('absolute -top-7 left-0 max-w-full truncate text-sm font-medium', color.text)}
-      >
-        {item.body.trim()}
-      </p>
+      <ItemHandles />
+      <ItemResizer item={item} selected={selected} />
+      <div className="absolute -top-8 left-0 max-w-full">
+        <EditableText
+          item={item}
+          singleLine
+          className={cn('truncate pt-1 text-sm font-medium whitespace-pre', color.text)}
+        />
+      </div>
     </div>
   );
 }
 
-export function ImageNode({ data: { item } }: ItemNodeProps<'image'>) {
+export function ImageNode({ data: { item }, selected }: ItemNodeProps<'image'>) {
   const caption = item.body.trim();
   return (
     <figure className="flex size-full flex-col gap-1">
-      <CentreHandles />
+      <ItemHandles />
+      <ItemResizer item={item} selected={selected} />
       <img
         src={fileUrl(item.src)}
         alt={caption}
         draggable={false}
         className="min-h-0 flex-1 rounded-md object-contain"
       />
-      {caption !== '' && (
-        <figcaption className="truncate text-xs text-muted-foreground">{caption}</figcaption>
-      )}
+      <figcaption className="text-xs text-muted-foreground">
+        <EditableText item={item} singleLine className="truncate whitespace-pre" />
+      </figcaption>
     </figure>
   );
 }
 
-export function LinkNode({ data: { item } }: ItemNodeProps<'link'>) {
+export function LinkNode({ data: { item }, selected }: ItemNodeProps<'link'>) {
   const title = item.preview?.title ?? new URL(item.url).hostname;
   return (
     <div className="flex size-full flex-col gap-1 overflow-hidden rounded-lg border bg-card p-3 text-card-foreground shadow-sm">
-      <CentreHandles />
+      <ItemHandles />
+      <ItemResizer item={item} selected={selected} />
       <p className="flex items-center gap-2 font-medium">
         <Link2 className="size-4 shrink-0 text-muted-foreground" />
         <span className="truncate">{title}</span>
@@ -125,11 +133,11 @@ export function LinkNode({ data: { item } }: ItemNodeProps<'link'>) {
         href={item.url}
         target="_blank"
         rel="noreferrer"
-        className="pointer-events-auto truncate text-xs text-primary underline-offset-4 hover:underline"
+        className="nodrag truncate text-xs text-primary underline-offset-4 hover:underline"
       >
         {item.url}
       </a>
-      <ItemText body={item.body} className="text-sm" />
+      <EditableText item={item} className="text-sm" editorClassName="min-h-12 resize-none" />
     </div>
   );
 }

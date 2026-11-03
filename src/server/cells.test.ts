@@ -1,6 +1,6 @@
 import { mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Board, RunResult } from '../shared/board';
 import { startServer, type RunningServer } from './start';
 import { freePort, makeHost, send } from './test-helpers';
@@ -120,9 +120,12 @@ describe('cells', () => {
     await writeFile(join(outputs(IDS.write), '.hidden'), '');
     await mkdir(join(outputs(IDS.write), 'sub'));
     await runOk(IDS.quiet);
-    const board = JSON.parse((await send(port, '/api/board')).body) as Board;
-    expect(Object.keys(board.outputs)).toEqual([IDS.write]);
-    expect(board.outputs[IDS.write]?.map((file) => file.name)).toEqual(['B.txt', 'out.txt']);
-    expect(board.outputs[IDS.write]?.[0]?.version).toBeTypeOf('number');
+    // The store picks the new files up from the watcher.
+    await vi.waitFor(async () => {
+      const board = JSON.parse((await send(port, '/api/board')).body) as Board;
+      expect(Object.keys(board.outputs)).toEqual([IDS.write]);
+      expect(board.outputs[IDS.write]?.map((file) => file.name)).toEqual(['B.txt', 'out.txt']);
+      expect(board.outputs[IDS.write]?.[0]?.version).toBeTypeOf('number');
+    });
   });
 });

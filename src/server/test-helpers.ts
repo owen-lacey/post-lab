@@ -27,7 +27,11 @@ export function freePort(): Promise<number> {
 export function send(
   port: number,
   path: string,
-  { method = 'GET', headers = {} }: { method?: string; headers?: Record<string, string> } = {},
+  {
+    method = 'GET',
+    headers = {},
+    body,
+  }: { method?: string; headers?: Record<string, string>; body?: string } = {},
 ): Promise<Reply> {
   return new Promise((resolve, reject) => {
     const req = httpRequest(
@@ -45,6 +49,42 @@ export function send(
         res.on('data', (chunk: string) => (body += chunk));
         res.on('end', () => {
           resolve({ status: res.statusCode ?? 0, headers: res.headers, body });
+        });
+      },
+    );
+    req.once('error', reject);
+    req.end(body);
+  });
+}
+
+export interface EventStream {
+  /** Raw text received so far. */
+  text: () => string;
+  close: () => void;
+}
+
+/** Opens `GET /api/events` and resolves once the stream's headers have arrived. */
+export function openEvents(port: number): Promise<EventStream> {
+  return new Promise((resolve, reject) => {
+    let text = '';
+    const req = httpRequest(
+      {
+        host: '127.0.0.1',
+        port,
+        path: '/api/events',
+        agent: false,
+        headers: { host: `127.0.0.1:${String(port)}` },
+      },
+      (res) => {
+        res.setEncoding('utf8');
+        res.on('data', (chunk: string) => (text += chunk));
+        res.once('data', () => {
+          resolve({
+            text: () => text,
+            close: () => {
+              req.destroy();
+            },
+          });
         });
       },
     );

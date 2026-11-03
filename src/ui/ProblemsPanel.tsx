@@ -34,7 +34,7 @@ export function ProblemsPanel({ problems }: { problems: Problem[] }) {
         <SheetHeader>
           <SheetTitle>Problems</SheetTitle>
           <SheetDescription>
-            These files are not shown on the canvas. Fix them and reload.
+            These files are not shown on the canvas. Fix them and the board updates.
           </SheetDescription>
         </SheetHeader>
         <ul className="flex flex-col gap-4 px-4 pb-4">
